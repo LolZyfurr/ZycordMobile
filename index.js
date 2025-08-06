@@ -1,1 +1,2270 @@
-let discordAccountAuth=sessionStorage.getItem("discordAuth");discordAccountAuth||(discordAccountAuth=prompt("Enter your Discord account auth token:"),discordAccountAuth&&discordAccountAuth.startsWith("OD")?sessionStorage.setItem("discordAuth",discordAccountAuth):alert("Invalid or missing token. Please try again."));const originalLog=console.log,originalError=console.error,originalWarn=console.warn;console.log=function(...e){originalLog.apply(console,e);const t=document.createElement("div");t.className="zycord-ConsoleContent zycord-LogConsole",t.textContent=e.join(" "),document.querySelector(".zycord-ConsoleWindow").appendChild(t)},console.error=function(...e){originalError.apply(console,e);const t=document.createElement("div");t.className="zycord-ConsoleContent zycord-ErrorConsole",t.textContent=e.join(" "),document.querySelector(".zycord-ConsoleWindow").appendChild(t)},console.warn=function(...e){originalWarn.apply(console,e);const t=document.createElement("div");t.className="zycord-ConsoleContent zycord-WarnConsole",t.textContent=e.join(" "),document.querySelector(".zycord-ConsoleWindow").appendChild(t)};const url="https://raw.githubusercontent.com/LolZyfurr/Zycord/refs/heads/main/MainClient.js";fetch(url).then((e=>{if(!e.ok)throw new Error(`HTTP error! Status: ${e.status}`);return e.text()})).then((e=>{console.log(e)})).catch((e=>{console.error("Error fetching GitHub content:",e)}));const requiredObjects=["channelList","websocketConnection","websocketHeartbeat","websocketReady"],loadStatus={};function updateLoadStatus(e,t){loadStatus[e]=t;const n=t?"Ready":"Error or Unloaded";console.log(`[${e}] - ${n}`),checkAllLoaded()}function checkAllLoaded(){requiredObjects.every((e=>loadStatus[e]))?hideLoad():showLoad()}requiredObjects.forEach((e=>loadStatus[e]=!1));let focusMenuStartY=0,focusMenuDeltaY=0,isDragging=!1,gestureLocked=null,dragBuffer=0,scrollLocked=!1;function createFocusContainer(e){const t=document.createElement("div");t.className="zycord-FocusContainer",t.addEventListener("click",(e=>{n.contains(e.target)||l()}));const n=document.createElement("div");n.className="zycord-BottomFocusContainer";const a=document.createElement("div");a.className="zycord-MenuDragContainer";const s=document.createElement("div");s.className="zycord-MenuDragIcon",a.appendChild(s);const o=document.createElement("div");o.className="zycord-BottomMenuContainer";const r={Delete:()=>deleteMessage(e),Edit:()=>editMessageAction(e),Reply:()=>replyMessageAction(e)};[{text:"Delete",icon:"https://cdn3.emoji.gg/emojis/4151-delete-guild.png"},{text:"Edit",icon:"https://cdn3.emoji.gg/emojis/3639-edit.png"},{text:"Reply",icon:"https://cdn3.emoji.gg/emojis/8758-reply-msg.png"},{text:"Share",icon:"https://cdn3.emoji.gg/emojis/6344-communication-requests.png"},{text:"Copy",icon:"https://cdn3.emoji.gg/emojis/2716-utilities.png"},{text:"Pin",icon:"https://cdn3.emoji.gg/emojis/7896-pinned.png"},{text:"Report",icon:"https://cdn3.emoji.gg/emojis/4645-report-message.png"},{text:"Block",icon:"https://cdn3.emoji.gg/emojis/4811-report-raid.png"}].forEach((e=>{const t=document.createElement("div");t.className="zycord-BottomMenuButton";const n=document.createElement("div");n.className="zycord-BottomMenuIcon",n.style.maskImage=`url(${e.icon})`,n.style.webkitMaskImage=`url(${e.icon})`;const a=document.createElement("div");a.className="zycord-BottomMenuText",a.textContent=e.text,t.appendChild(n),t.appendChild(a),o.appendChild(t),t.addEventListener("click",(()=>{const t=r[e.text];t&&t(),l()}))})),n.appendChild(a),n.appendChild(o),t.appendChild(n),t.style.opacity="0",t.style.transform="translateY(20px)",t.style.transition="opacity 0.4s ease, transform 0.4s ease";const c=document.querySelector(".zycord-FocusContainerList");c&&(c.appendChild(t),requestAnimationFrame((()=>{t.style.opacity="1",t.style.transform="translateY(0)"})));const i=o,d=n;function l(){d.style.transition="transform 0.25s ease",d.style.transform="translateY(100%)",t.style.transition="opacity 0.3s ease",t.style.opacity="0",setTimeout((()=>{t.remove()}),300)}return d.addEventListener("touchstart",(e=>{1===e.touches.length&&(focusMenuStartY=e.touches[0].clientY,dragBuffer=0,focusMenuDeltaY=0,isDragging=!0,gestureLocked=null,scrollLocked=!1,d.style.transition="none",d.style.willChange="transform")})),d.addEventListener("touchmove",(e=>{if(!isDragging)return;const t=e.touches[0].clientY;if(focusMenuDeltaY=t-focusMenuStartY,null===gestureLocked&&Math.abs(focusMenuDeltaY)>10&&(gestureLocked="drag"),"drag"===gestureLocked){if(!(i.scrollTop<=0))return dragBuffer+=focusMenuDeltaY,void(focusMenuStartY=t);const n=focusMenuDeltaY+dragBuffer;if(n>0){const t=Math.min(n/window.innerHeight*100,100);d.style.transform=`translateY(${t}vh)`,e.preventDefault()}}})),d.addEventListener("touchend",(()=>{if(!isDragging)return;isDragging=!1;const e=focusMenuDeltaY+dragBuffer;d.style.transition="transform 0.25s ease",t.style.transition="opacity 0.3s ease",d.style.willChange="auto","drag"===gestureLocked&&e>.25*window.innerHeight?l():d.style.transform="translateY(0)",gestureLocked=null,dragBuffer=0})),t}async function fetchCachedUserProfile(e,t=!1){const n=`users-${e}-profile`;try{if(t||!zycordDataStore.has(n)){const t=await fetch(`https://discord.com/api/v9/users/${e}/profile?type=popout&with_mutual_guilds=true&with_mutual_friends=true&with_mutual_friends_count=false`,{headers:{Authorization:discordAccountAuth,"Content-Type":"application/json"}});if(!t.ok)return console.error(`Failed to fetch user profile. Status: ${t.status}`),null;const a=await t.json();zycordDataStore.set(n,a),console.log(JSON.stringify(a))}const a=zycordDataStore.get(n);return a&&a.user?a:(console.warn("User data missing from response."),null)}catch(e){return console.error("Error fetching or parsing user profile:",e),null}}function formatElapsedTime(e){const t=Date.now(),n=Math.max(0,t-e),a=Math.floor(n/1e3),s=Math.floor(a/60),o=Math.floor(s/60);return o>=1?`${o} hr${o>1?"s":""}`:s>=1?`${s} min${s>1?"s":""}`:`${a} sec${1!==a?"s":""}`}function resolveActivityTimestamp(e){return e.created_at??e?.timestamps?.start??Date.now()}function resolveActivityIconUrl(e){const t=e?.assets?.large_image;if(!t)return"https://cdn.discordapp.com/embed/avatars/0.png";if(t.startsWith("mp:external/")){return`https://media.discordapp.net/external/${t.slice(12)}`}return`https://cdn.discordapp.com/app-assets/${e.application_id}/${t}`}function createActivityElement(e){const t=document.createElement("div");t.className="ProfileContent",t.dataset.activityId=e.application_id;const n=document.createElement("div");n.className="ProfileActivityContainer",n.dataset.activityId=e.application_id;const a=document.createElement("div");a.className="ProfileActivityType",a.textContent=`Playing ${e.name}`;const s=document.createElement("div");s.className="ProfileActivityDetails";const o=document.createElement("div");o.className="ProfileActivityIcon";const r=document.createElement("img");r.src=resolveActivityIconUrl(e),r.className="ProfileActivityDisplay",o.appendChild(r);const c=document.createElement("div");c.className="ProfileActivityContent";const i=document.createElement("div");i.className="ProfileActivityHeader",i.textContent=e.name;const d=resolveActivityTimestamp(e),l=document.createElement("div");function m(){l.textContent=formatElapsedTime(d)}if(l.className="ProfileActivityTime",m(),setInterval(m,1e3),c.appendChild(i),e?.details?.trim()){const t=document.createElement("div");t.className="ProfileActivityInfoDetails",t.textContent=e.details,c.appendChild(t)}if(e?.state?.trim()){const t=document.createElement("div");t.className="ProfileActivityState",t.textContent=e.state,c.appendChild(t)}return c.appendChild(l),s.appendChild(o),s.appendChild(c),n.appendChild(a),n.appendChild(s),t.appendChild(n),t}function renderActivities(e,t){(e?.activities??[]).forEach((e=>{if(0===e.type){const n=createActivityElement(e);t.appendChild(n)}}))}function upsertActivityElement(e){if(e?.application_id){const t=e.application_id,n=document.querySelector(`.ProfileContent[data-activity-id="${t}"]`);if(n){const a=n.querySelector(`.ProfileActivityContainer[data-activity-id="${t}"]`),s=createActivityElement(e),o=s?.querySelector(`.ProfileActivityContainer[data-activity-id="${t}"]`);o?n.replaceChild(o,a):n.appendChild(s)}}}async function showDiscordUserProfileOverlay(e){const t=await fetchCachedUserProfile(e),n=t.user,a=n.avatar?`https://cdn.discordapp.com/avatars/${n.id}/${n.avatar}.png?size=2048`:"https://cdn.discordapp.com/embed/avatars/0.png",s=n.banner?`https://cdn.discordapp.com/banners/${n.id}/${n.banner}.png?size=2048`:"",o=zycordDataStore.get(`activities-${e}`);console.log(JSON.stringify(o));const r=getStatusClassFromPresence(o?.status||"offline"),c=document.createElement("div");c.className="zycord-FocusContainer";const i=document.createElement("div");i.className="ProfilePopout";const d=document.createElement("div");d.className="zycord-MenuDragContainer";const l=document.createElement("div");l.className="zycord-MenuDragIcon",d.appendChild(l),i.appendChild(d);const m=document.createElement("div");if(m.className="ProfileBanner",m.style.backgroundColor=n.banner_color,s){const e=document.createElement("img");e.src=s,e.className="ProfileBannerDisplay",m.appendChild(e)}const u=document.createElement("div");u.className="ProfileAvatar";const p=document.createElement("img");p.src=a,p.className="ProfileAvatarDisplay";const g=document.createElement("div");g.className="ProfileStatus";const y=document.createElement("div");y.className=`ProfileStatusDisplay ${r}`,g.appendChild(y),u.appendChild(p),u.appendChild(g);const h=document.createElement("div");h.className="ProfileHeader",h.appendChild(m),h.appendChild(u);const f=document.createElement("div");f.className="ProfileName",f.textContent=n.global_name||n.username;const v=document.createElement("div");v.className="zycord-UsernameContainer";const C=document.createElement("div");C.className="ProfileUsername",C.textContent=`@${n.username}${"0"!==n.discriminator?"#"+n.discriminator:""}`;const E=document.createElement("div");if(E.className="ProfileDetails",v.appendChild(C),E.append(f,v),""!==t.user_profile.pronouns){const e=document.createElement("div");e.className="zycord-MutedDotSpacer";const n=document.createElement("div");n.className="ProfileUsername",n.textContent=t.user_profile.pronouns,v.append(e,n)}if(t.badges.length>0){const e=document.createElement("div");e.className="zycord-ProfileBadgeContainer",t.badges.forEach((t=>{const n=document.createElement("img");n.className="zycord-ProfileBadgeImage",n.src=`https://cdn.discordapp.com/badge-icons/${t.icon}.png`,e.appendChild(n)})),E.appendChild(e)}const S=document.createElement("div");S.className="ProfileContentContainer";const M=document.createElement("div");M.className="ProfileContentHeader",M.textContent="About Me";const w=document.createElement("div");w.className="ProfileContentText",n.bio&&n.bio.split("\n").forEach((e=>{const t=document.createElement("span");t.textContent=e,w.appendChild(t),w.appendChild(document.createElement("br"))})),S.appendChild(M),S.appendChild(w);const z=document.createElement("div");z.className="ProfileContentContainer";const A=document.createElement("div");A.className="ProfileContentHeader",A.textContent="Member Since";const D=document.createElement("div");D.className="ProfileContentText",D.textContent=(new Date).toLocaleDateString(),z.appendChild(A),z.appendChild(D);const b=document.createElement("div");b.className="ProfileContent",b.appendChild(S),b.appendChild(z);const L=document.createElement("div");L.className="ProfileContainer",L.appendChild(E),L.appendChild(b),o?.activities?.length>0&&renderActivities(o,L),i.appendChild(h),i.appendChild(L),c.style.opacity="0",c.style.transform="translateY(20px)",c.style.transition="opacity 0.4s ease, transform 0.4s ease",c.appendChild(i),c.addEventListener("click",(e=>{i.contains(e.target)||(P.style.transition="transform 0.3s ease",P.style.transform="translateY(100%) translateX(-50%)",c.style.transition="opacity 0.3s ease",c.style.opacity="0",setTimeout((()=>{c.remove()}),300))}));const I=document.querySelector(".zycord-FocusContainerList");I&&(I.appendChild(c),requestAnimationFrame((()=>{c.style.opacity="1",c.style.transform="translateY(0)"})));let N=!1,$=null,k=0,T=0,_=0;const x=i,P=i;P.addEventListener("touchstart",(e=>{1===e.touches.length&&(k=e.touches[0].clientY,T=0,_=0,N=!0,$=null,P.style.transition="none",P.style.willChange="transform")})),P.addEventListener("touchmove",(e=>{if(!N)return;const t=e.touches[0].clientY;if(T=t-k,null===$&&Math.abs(T)>10&&($="profileDrag"),"profileDrag"===$){if(!(x?.scrollTop<=0))return _+=T,void(k=t);const n=T+_;if(n>0){const t=Math.min(n/window.innerHeight*100,100);P.style.transform=`translateY(${t}vh) translateX(-50%)`,x.style.overflow="hidden",e.preventDefault()}}})),P.addEventListener("touchend",(()=>{if(!N)return;N=!1;const e=T+_;P.style.transition="transform 0.25s ease",P.style.willChange="auto","profileDrag"===$&&e>.25*window.innerHeight?(P.style.transition="transform 0.3s ease",P.style.transform="translateY(100%) translateX(-50%)",c.style.transition="opacity 0.3s ease",c.style.opacity="0",setTimeout((()=>{c.remove()}),300)):(x.style.overflow="auto",P.style.transform="translateY(0) translateX(-50%)"),$=null,_=0}))}function createFocusConfirmMenu({title:e,description:t,onConfirm:n,onCancel:a}){const s=document.createElement("div");s.className="zycord-FocusContainer";const o=document.createElement("div");o.className="zycord-FocusConfirmMenu";const r=document.createElement("div");r.className="zycord-ConfirmMenuContent";const c=document.createElement("div");c.className="zycord-ConfirmMenuTitle",c.textContent=e||"Delete Message";const i=document.createElement("div");i.className="zycord-ConfirmMenuDescription",i.textContent=t||"Are you sure you want to delete this message?",r.appendChild(c),r.appendChild(i);const d=document.createElement("div");d.className="zycord-ConfirmMenuActions";const l=document.createElement("div");l.className="zycord-ConfirmMenuActionButton",l.textContent="Cancel",l.addEventListener("click",(()=>{"function"==typeof a&&a(),s.remove()}));const m=document.createElement("div");m.className="zycord-ConfirmMenuActionButton",m.textContent="Confirm",m.addEventListener("click",(()=>{"function"==typeof n&&n(),s.remove()})),d.appendChild(l),d.appendChild(m),o.appendChild(r),o.appendChild(d),s.appendChild(o);const u=document.querySelector(".zycord-FocusContainerList");return u&&u.appendChild(s),o}function attachSwipeToElement(e,t){let n,a,s,o;const r="dismiss-right-to-left";let c=null;function i(e){e===r?(gestureLocked=r,c=r):null===e?(gestureLocked=null,c=null):c=r}function d(){return gestureLocked||c}let l=!1,m=0;e.addEventListener("touchstart",(t=>{1===t.touches.length&&(n=t.touches[0].clientX,a=t.touches[0].clientY,isDragging=!0,l=!1,m=0,i(null),e.style.transition="none",e.style.willChange="transform",e.style.transform="translateZ(0)")})),e.addEventListener("touchmove",(t=>{if(!isDragging)return;const c=t.touches[0];s=c.clientX;const u=c.clientY-a,p=n-s,g=Math.abs(p),y=Math.abs(u);if(!d())if(y>5)i("scroll");else if(g<10||g<y)i("scroll");else{i("left"===(p>0?"left":"right")?r:"scroll")}if(d()===r&&(l||(m++,m>2&&(l=!0)),l&&p>0)){o=p;const n=Math.min(o/window.innerWidth*100,100);e.style.transform=`translateX(-${n}vw)`,t.preventDefault()}})),e.addEventListener("touchend",(()=>{isDragging&&d()===r&&(isDragging=!1,i(null),o>.25*window.innerWidth&&"function"==typeof t&&t(e),e.style.transition="transform 0.25s ease",e.style.transform="translateX(0)",e.style.willChange="auto")}))}function formatUnixTimestamp(e){const t=new Date,n=new Date(1e3*e),a=(new Date(t.getFullYear(),t.getMonth(),t.getDate())-new Date(n.getFullYear(),n.getMonth(),n.getDate()))/864e5,s=n.getHours(),o=s>=12?"PM":"AM",r=`${s%12==0?12:s%12}:${n.getMinutes().toString().padStart(2,"0")} ${o}`;if(0===a)return`${r}`;if(1===a)return`Yesterday at ${r}`;return`${(n.getMonth()+1).toString().padStart(2,"0")}/${n.getDate().toString().padStart(2,"0")}/${n.getFullYear()} ${r}`}function removeMessage(e){const t=document.querySelector(".zycord-MessageContainerList"),n=t.querySelector(`[data-message-id="${e}"]`);n?(t.removeChild(n),console.log(`🗑️ Message removed from UI: ${e}`)):console.warn(`No message found to remove: ${e}`)}function getFileExtension(e){return e.split("?")[0].split(".").pop().toLowerCase()}function createCustomAudioPlayer(e,t){const n={play:"https://cdn3.emoji.gg/emojis/5134-resume.png",pause:"https://cdn3.emoji.gg/emojis/6148-pause.png",back:"https://cdn3.emoji.gg/emojis/5134-backward.png",forward:"https://cdn3.emoji.gg/emojis/5134-forward.png",replay:"https://cdn3.emoji.gg/emojis/8562-replay.png"},a=document.createElement("div");a.className="zycord-CustomAudioAttachment";const s=document.createElement("div");s.className="zycord-CustomAudioTitle",s.textContent=e;const o=document.createElement("audio");o.src=t,o.preload="metadata";const r=document.createElement("div");r.className="zycord-CustomAudioBar";const c=document.createElement("div");c.className="zycord-CustomAudioBarFill",r.appendChild(c);const i=document.createElement("div");function d(e){const t=document.createElement("div");t.className="zycord-CustomAudioButton";const a=document.createElement("div");return a.className="zycord-CustomAudioIcon",a.style.maskImage=`url("${n[e]}")`,a.style.webkitMaskImage=a.style.maskImage,t.appendChild(a),{btn:t,icon:a}}i.className="zycord-CustomAudioButtonsContainer";const{btn:l}=d("back"),{btn:m,icon:u}=d("play"),{btn:p}=d("forward");i.append(l,m,p);let g=!1,y=!1;function h(){const e=o.duration?o.currentTime/o.duration*100:0;c.style.width=`${e}%`}return o.addEventListener("loadedmetadata",h),o.addEventListener("timeupdate",h),o.addEventListener("ended",(()=>{g=!1,y=!0,u.style.maskImage=`url("${n.replay}")`,u.style.webkitMaskImage=u.style.maskImage})),l.addEventListener("click",(()=>{o.currentTime=Math.max(0,o.currentTime-10)})),p.addEventListener("click",(()=>{o.currentTime=Math.min(o.duration,o.currentTime+10)})),m.addEventListener("click",(()=>{(y||o.currentTime===o.duration)&&(o.currentTime=0,y=!1),o.paused?(o.play(),g=!0,u.style.maskImage=`url("${n.pause}")`,u.style.webkitMaskImage=u.style.maskImage):(o.pause(),g=!1,u.style.maskImage=`url("${n.play}")`,u.style.webkitMaskImage=u.style.maskImage)})),a.append(s,o,r,i),a}function formatTime(e){return`${Math.floor(e/60)}:${Math.floor(e%60).toString().padStart(2,"0")}`}function createMessageElement({messageReference:e={},edited:t,messageId:n,username:a,tag:s,timestamp:o,content:r,attachments:c=[],embed:i=null,reactions:d=[],avatarSrc:l=""}){const m=Boolean(r&&r.trim()&&""!==r&&""!==r.trim()),u=Array.isArray(c)&&c.length>0,p=Array.isArray(i)&&i.length>0;if(!m&&!u&&!p)return;const g=document.createElement("div");g.className="zycord-ChannelMessage",e.message_id&&g.classList.add("zycord-MessageReplyActive"),g.setAttribute("data-message-id",n),g.setAttribute("data-message-timestamp",o);const y=document.createElement("div");y.className="zycord-DirectMessageReplyDisplay";const h=document.createElement("div");if(h.className="zycord-DirectMessageContentDisplay",e&&e.message_id){const t=zycordDataStore.get(`channel-${e.channel_id}-messages`)?.find((t=>t.id===e.message_id));if(t){const e=`@${t.author.global_name||"Unknown User"}`,n=t.content||"No content available",a=document.createElement("div");a.className="zycord-DM-replyUsername",a.textContent=e;const s=document.createElement("div");s.className="zycord-DM-replyContent",s.textContent=n,y.append(a,s)}}const f=document.createElement("div");if(f.className="zycord-ChannelMessageAvatarContainer",l){const e=document.createElement("img");e.src=l,e.className="zycord-AvatarImage",f.appendChild(e)}const v=document.createElement("div");v.className="zycord-ChannelMessageTextContainer";const C=document.createElement("div");C.className="zycord-ChannelMessageHeaderContainer";const E=document.createElement("div");if(E.className="zycord-ChannelMessageUsername",E.textContent=a,s){const e=document.createElement("div");e.className="zycord-ApplicationTag",e.textContent=s,E.appendChild(e)}const S=document.createElement("div");S.className="zycord-ChannelMessageTimestamp",S.textContent=formatUnixTimestamp(o),C.append(E,S);const M=document.createElement("div");M.className="zycord-ChannelMessageContentContainer";const w=document.createElement("div");if(w.className="zycord-ChannelMessageContent",w.innerHTML=parseDiscordEmojis(r),M.appendChild(w),t){const e=document.createElement("span");e.className="zycord-ChannelMessageEdited",e.textContent=" (edited)",w.appendChild(e)}if(c.length){const e=document.createElement("div");e.className="zycord-ChannelAttachmentContent",c.forEach((t=>{const n=getFileExtension(t.url);let a;"mp3"===n||"wav"===n||"ogg"===n||"flac"===n?a=createCustomAudioPlayer(t.filename,t.url):(a=document.createElement("img"),a.src=t.url,a.className="zycord-MessageAttachment"),e.appendChild(a)})),M.appendChild(e)}if(i.length){const e=document.createElement("div");e.className="zycord-ChannelEmbedContainer",i.forEach((({title:t,details:n})=>{if(t||n){const a=document.createElement("div");a.className="zycord-ChannelEmbedContent";const s=document.createElement("div");s.className="zycord-EmbedTitle",s.textContent=t||"";const o=document.createElement("div");o.className="zycord-EmbedDetails",o.textContent=n||"",a.append(s,o),e.appendChild(a)}})),M.appendChild(e)}if(d.length){const e=document.createElement("div");e.className="zycord-ChannelReactionList",d.forEach((({emoji:t,count:n})=>{const a=document.createElement("div");a.className="zycord-MessageReaction";const s=function(e){if(e.id){const t=e.animated?"gif":"png",n=document.createElement("img");return n.src=`https://cdn.discordapp.com/emojis/${e.id}.${t}`,n.alt=e.name||"",n.className="zycord-MessageReactionIcon",n.loading="lazy",n.onerror=()=>{n.src=""},n}{const t=document.createElement("div");return t.textContent=e.name,t.className="zycord-MessageReactionIcon zycord-NativeEmoji",t}}(t),o=document.createElement("div");o.className="zycord-MessageReactionNumber",o.textContent=n,a.append(s,o),e.appendChild(a)})),M.appendChild(e)}return v.append(C,M),h.append(f,v),g.append(y,h),document.querySelector(".zycord-MessageContainerList").prepend(g),attachSwipeToElement(g,(()=>{createFocusContainer(n)})),[E,f].forEach((e=>{e.style.cursor="pointer",e.addEventListener("click",(()=>{const e=zycordDataStore.get(`channel-${currentChannelId}-messages`)?.find((e=>e.id===n))?.author?.id;showDiscordUserProfileOverlay(e)}))})),g}function upsertMessage(e){const{messageId:t,newMessageId:n}=e,a=n||t,s=document.querySelector(`[data-message-id="${t}"]`);s&&n&&(s.dataset.messageId=n);const o=createMessageElement({...e,messageId:a});if(s)s.replaceWith(o);else{const e=document.querySelector(".zycord-ChannelMessageList");e?e.prepend(o):console.warn("Message container not found. Delaying render or aborting...")}}document.getElementById("closeMessagesButton").addEventListener("click",(()=>swipeMessageContainer(!1))),document.getElementById("fileInput").addEventListener("change",(function(e){const t=document.getElementById("zycord-MediaPreviewContainer");Array.from(e.target.files).forEach((e=>{zycordMediaStore.addFile(e);const n=document.createElement("div");n.className="zycord-MediaPreviewItemWrapper",n.style.position="relative",n.style.display="inline-block";const a=document.createElement("span");if(a.textContent="X",a.className="zycord-RemoveBtn",a.addEventListener("click",(()=>{zycordMediaStore.removeFile(e),n.remove(),t.style.display=zycordMediaStore.hasFiles()?"flex":"none"})),e.type.startsWith("image/")){const t=document.createElement("img");t.src=URL.createObjectURL(e),t.className="zycord-MediaPreviewItem",n.appendChild(t)}else{const t=document.createElement("div");t.textContent=e.name,t.className="zycord-MediaPreviewItem",t.style.cssText="\n                display: flex;\n                align-items: center;\n                justify-content: center;\n                height: 80px;\n                padding: 10px;\n                background: #222;\n                color: #fff;\n            ",n.appendChild(t)}n.appendChild(a),t.appendChild(n)})),t.style.display=zycordMediaStore.hasFiles()?"flex":"none"})),console.log("Authenticated with token:",discordAccountAuth),discordAccountAuth||console.error("Account authorization token is not set.");const zycordDataStore=(()=>{const e=new Map;return{set:(t,n)=>{e.set(t,n)},get:t=>e.get(t),has:t=>e.has(t),delete:t=>{e.delete(t)},clear:()=>{e.clear()}}})(),zycordWebsocketEndpoint="wss://gateway.discord.gg/?v=10&encoding=json",zycordStateStore=(()=>{let e=null;const t=document.querySelector(".zycord-MessageCreationReply");t.style.display="none";const n=t?.querySelector(".zycord-ReplyRemoveBtn"),a=()=>{e?(t.style.display="",console.log(`Applying state: ${JSON.stringify(e)}`),t.querySelector(".zycord-CreationReplyContent").textContent=1===e.type?"Replying to a message":"Editing message"):t.style.display="none"};return n&&n.addEventListener("click",(()=>{e=null,a()})),{setState:t=>{e=t,a()},clearState:()=>{e=null,a()},getState:()=>e}})(),zycordMediaStore=(()=>{let e=[];return{addFile:t=>{e.push(t)},removeFile:t=>{e=e.filter((e=>e!==t))},getFiles:()=>e,clearFiles:()=>{e=[]},hasFiles:()=>e.length>0}})();let heartbeatInterval,zycordWebsocket,currentChannelId="1259952741569269913";const buttons=document.querySelectorAll(".zycord-NavigationButton"),windows=document.querySelectorAll(".zycord-AppWindow > div"),threadWindow=document.querySelector(".zycord-ThreadWindow"),messageContainer=document.querySelector(".zycord-MessageContainer");function hideLoad(){const e=document.querySelector(".zycord-LoadContainer");e&&(e.style.transition="opacity 1s ease",e.style.opacity="0",setTimeout((()=>{e.style.display="none"}),1e3))}function showLoad(){const e=document.querySelector(".zycord-LoadContainer");e&&(e.style.display="",e.style.opacity="0",e.style.transition="opacity 1s ease",requestAnimationFrame((()=>{e.style.opacity="1"})))}buttons.forEach(((e,t)=>{e.addEventListener("click",(()=>{buttons.forEach((e=>e.classList.remove("active"))),e.classList.add("active"),windows.forEach((e=>e.classList.remove("active-window"))),windows[t].classList.add("active-window")}))})),buttons[0].classList.add("active"),windows[0].classList.add("active-window");let startX=0,startY=0,currentX=0,deltaX=0;threadWindow.addEventListener("touchstart",(e=>{1===e.touches.length&&(startX=e.touches[0].clientX,startY=e.touches[0].clientY,isDragging=!0,gestureLocked=null,messageContainer.style.transition="none")})),threadWindow.addEventListener("touchmove",(e=>{if(!isDragging)return;const t=e.touches[0];currentX=t.clientX;const n=t.clientY,a=currentX-startX,s=n-startY;if(gestureLocked||(gestureLocked=Math.abs(a)>Math.abs(s)?"drag":"scroll"),"drag"===gestureLocked&&(deltaX=startX-currentX,deltaX>0)){const t=Math.min(deltaX/window.innerWidth*100,100);messageContainer.style.transform=`translateX(${100-t}vw)`,e.preventDefault()}})),threadWindow.addEventListener("touchend",(()=>{isDragging&&"drag"===gestureLocked&&(isDragging=!1,deltaX>.25*window.innerWidth?swipeMessageContainer(!0):swipeMessageContainer(!1),gestureLocked=null)})),messageContainer.addEventListener("touchstart",(e=>{1===e.touches.length&&(startX=e.touches[0].clientX,startY=e.touches[0].clientY,isDragging=!0,gestureLocked=null,messageContainer.style.transition="none")})),messageContainer.addEventListener("touchmove",(e=>{if(!isDragging)return;const t=e.touches[0];currentX=t.clientX;const n=t.clientY,a=currentX-startX,s=n-startY;if(gestureLocked||(gestureLocked=Math.abs(a)>Math.abs(s)?"drag":"scroll"),"drag"===gestureLocked&&a>0){deltaX=a;const t=Math.min(deltaX/window.innerWidth*100,100);messageContainer.style.transform=`translateX(${t}vw)`,e.preventDefault()}})),messageContainer.addEventListener("touchend",(()=>{isDragging&&"drag"===gestureLocked&&(isDragging=!1,deltaX>.25*window.innerWidth?swipeMessageContainer(!1):swipeMessageContainer(!0),gestureLocked=null)}));let typingInterval=null;function sendTypingNotification(){currentChannelId&&discordAccountAuth&&fetch(`https://discord.com/api/v9/channels/${currentChannelId}/typing`,{method:"POST",headers:{Authorization:discordAccountAuth}}).catch((e=>console.error("Typing notification failed:",e)))}function startTypingLoop(){!typingInterval&&currentChannelId&&discordAccountAuth&&(sendTypingNotification(),typingInterval=setInterval((()=>{document.getElementById("messageInput").value.trim()?sendTypingNotification():stopTypingLoop()}),8e3))}function stopTypingLoop(){typingInterval&&(clearInterval(typingInterval),typingInterval=null)}function replyMessageAction(e){const t={type:1,reference:e};zycordStateStore.setState(t);const n=document.getElementById("messageInput");n&&(n.value="",n.focus())}function editMessageAction(e){const t={type:2,reference:e};zycordStateStore.setState(t);const n=document.getElementById("messageInput"),a=zycordDataStore.get(`channel-${currentChannelId}-messages`)?.find((t=>t.id===e));a?n&&(n.value=a.content||"",n.focus()):console.warn(`No message data found for ID: ${e}`)}async function deleteMessage(e){if(!currentChannelId||!discordAccountAuth)return void console.error("Missing currentChannelId or discordAccountAuth");document.querySelector(".zycord-FocusContainer")?createFocusConfirmMenu({title:"Delete Message",description:"Are you sure you want to delete this message?",onConfirm:async()=>{try{const t=await fetch(`https://discord.com/api/v9/channels/${currentChannelId}/messages/${e}`,{method:"DELETE",headers:{Authorization:discordAccountAuth,"Content-Type":"application/json"}});t.ok?console.log("Message deleted successfully"):console.error("Failed to delete message:",await t.text())}catch(e){console.error("Error deleting message:",e)}},onCancel:()=>console.log("Delete cancelled")}):console.error("Focus container not found in DOM")}async function sendMessage(){try{const e=document.getElementById("messageInput"),t=e.value.trim(),n=document.getElementById("fileInput"),a=zycordMediaStore.getFiles(),s=zycordStateStore.getState();if(!t&&0===a.length)return;if(!currentChannelId||!discordAccountAuth)return;let o=s&&2===s.type?"PATCH":"POST",r=s&&2===s.type?`https://discord.com/api/v9/channels/${currentChannelId}/messages/${s.reference}`:`https://discord.com/api/v9/channels/${currentChannelId}/messages`;const c=new FormData,i={content:t,tts:!1};let d;s&&1===s.type&&(i.message_reference={message_id:s.reference,channel_id:currentChannelId,fail_if_not_exists:!1}),c.append("payload_json",JSON.stringify(i)),s&&2===s.type||a.forEach(((e,t)=>{c.append(`files[${t}]`,e)}));try{d=crypto.randomUUID()}catch(e){const t=Math.floor(Date.now()/1e3),n=new Uint8Array(4);new DataView(n.buffer).setUint32(0,t,!1),d=btoa(String.fromCharCode(...n))}const l=createMessageElement({messageReference:s&&1===s.type?{message_id:s.reference,channel_id:currentChannelId}:{},edited:!1,messageId:d,username:"You",tag:"",timestamp:Math.floor(Date.now()/1e3),content:t,attachments:a.map((e=>({url:URL.createObjectURL(e),filename:e.name}))),embed:[],reactions:[],avatarSrc:"https://cdn.discordapp.com/embed/avatars/0.png"}).classList.add("zycord-ChannelMessagePending");zycordStateStore.clearState(),e.value="",n.value="",zycordMediaStore.clearFiles(),document.getElementById("zycord-MediaPreviewContainer").innerHTML="",document.getElementById("zycord-MediaPreviewContainer").style.display="none";try{const e=await fetch(r,{method:o,headers:{Authorization:discordAccountAuth},body:c}),t=await e.json();if(e.ok){if(!!document.querySelector(`[data-message-id="${t.id}"]`))if(l)l.remove();else{const e=document.querySelector(`[data-message-id="${d}"]`);e&&e.remove()}else upsertMessage({messageReference:s&&1===s.type?{message_id:s.reference,channel_id:currentChannelId}:{},edited:!1,messageId:d,newMessageId:t.id,username:t.author.global_name||"Unknown",tag:t.author.bot?"app":"",timestamp:Math.floor(new Date(t.timestamp).getTime()/1e3),content:t.content||"",attachments:t.attachments||[],embed:t.embeds||[],reactions:t.reactions||[],avatarSrc:t.author.avatar?`https://cdn.discordapp.com/avatars/${t.author.id}/${t.author.avatar}.png?size=512`:"https://cdn.discordapp.com/embed/avatars/0.png"})}else console.error("Discord API error:",t)}catch(e){console.error("Message send failed:",e)}}catch(e){console.error(JSON.stringify(e))}}async function fetchAndRenderMessages(){const e=`channel-${currentChannelId}-messages`;if(zycordDataStore.has(e)){renderMessages(zycordDataStore.get(e))}else try{const t=await fetch(`https://discord.com/api/v9/channels/${currentChannelId}/messages?limit=50`,{method:"GET",headers:{Authorization:discordAccountAuth,"Content-Type":"application/json"}});if(!t.ok)throw new Error("Failed to fetch messages");const n=await t.json();zycordDataStore.set(e,n),n.reverse(),renderMessages(n)}catch(e){console.error("Error loading messages:",e)}}async function listDMChannels(){const e=await fetch("https://discord.com/api/v10/users/@me/channels",{method:"GET",headers:{Authorization:discordAccountAuth,"Content-Type":"application/json"}});if(!e.ok)throw new Error(`HTTP error ${e.status}`);return await e.json()}async function renderDmListFromAPI(){try{const e=document.querySelector(".zycord-ThreadWindow");e&&(e.innerHTML="");const t=await listDMChannels();t.sort(((e,t)=>{if(!e.last_message_id)return 1;if(!t.last_message_id)return-1;const n=BigInt(e.last_message_id),a=BigInt(t.last_message_id);return n>a?-1:n<a?1:0})),t.forEach((e=>{if(1!==e.type)return;const t=e.recipients?.[0];if(!t)return;const n=t.avatar?`https://cdn.discordapp.com/avatars/${t.id}/${t.avatar}.png?size=512`:"https://cdn.discordapp.com/embed/avatars/0.png";createDirectMessage({userId:t.id,channelId:e.id,avatarUrl:n,username:t.global_name||t.username,status:"",accountType:t.bot?"app":"user"})}))}catch(e){console.error("Failed to fetch DM list:",e)}}function parseDiscordEmojis(e){const t=e.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;"),n=t.replace(/&lt;a?:[\w]+:\d+&gt;/g,"").trim().length>0?"inline-emoji":"inline-emoji inline-emoji-no-text";let a=t.replace(/&lt;a:([\w]+):(\d+)&gt;/g,((e,t,a)=>`<img src="https://cdn.discordapp.com/emojis/${a}.gif" alt="${t}" class="zycord-emoji ${n}">`)).replace(/&lt;:([\w]+):(\d+)&gt;/g,((e,t,a)=>`<img src="https://cdn.discordapp.com/emojis/${a}.png" alt="${t}" class="zycord-emoji ${n}">`));return a=a.replace(/\*\*(.*?)\*\*/g,'<span class="zycord-bold">$1</span>').replace(/\*(.*?)\*/g,'<span class="zycord-italic">$1</span>').replace(/__(.*?)__/g,'<span class="zycord-underline">$1</span>').replace(/~~(.*?)~~/g,'<span class="zycord-strikethrough">$1</span>').replace(/`([^`]+?)`/g,'<span class="zycord-code">$1</span>').replace(/([\u{1F300}-\u{1FAFF}])/gu,'<span class="zycord-emoji zycord-unicode-emoji">$1</span>'),a}function renderMessages(e){const t=document.querySelector(".zycord-MessageContainerList");if(!t)return void console.warn("ThreadWindow element not found");t.innerHTML="";const n=new Map;e.forEach((e=>{n.set(e.id,e)})),e.forEach((e=>{(0===e.type||19===e.type)&&e.author&&(e.message_snapshots&&e.message_snapshots.length>0?e.message_snapshots.forEach((t=>{19===t.message.type&&createMessageElement({messageReference:e.message_reference||{},edited:!!e.edited_timestamp,messageId:e.id,username:e.author?.global_name||"Unknown",tag:e.author?.bot?"app":"",timestamp:t.message.timestamp?Math.floor(new Date(e.timestamp).getTime()/1e3):Math.floor(Date.now()/1e3),content:t.message.content||"",attachments:t.message.attachments||[],embed:t.message.embeds||[],reactions:e.reactions||[],avatarSrc:e.author.avatar?`https://cdn.discordapp.com/avatars/${e.author.id}/${e.author.avatar}.png?size=512`:"https://cdn.discordapp.com/embed/avatars/0.png"})})):createMessageElement({messageReference:e.message_reference||{},edited:!!e.edited_timestamp,messageId:e.id,username:e.author?.global_name||"Unknown",tag:e.author?.bot?"app":"",timestamp:e.timestamp?Math.floor(new Date(e.timestamp).getTime()/1e3):Math.floor(Date.now()/1e3),content:e.content||"",attachments:e.attachments||[],embed:e.embeds||[],reactions:e.reactions||[],avatarSrc:e.author.avatar?`https://cdn.discordapp.com/avatars/${e.author.id}/${e.author.avatar}.png?size=512`:"https://cdn.discordapp.com/embed/avatars/0.png"}))}))}function swipeMessageContainer(e){const t=document.querySelector(".zycord-MessageContainer");t.style.transition="transform 0.3s ease",t.style.transform=e?"translateX(0)":"translateX(100vw)"}function setDirectMessageUnread(e,t){document.querySelectorAll(`.zycord-directMessageContainer[data-channel-id="${e}"]`).forEach((e=>{t?e.classList.add("zycord-directMessageTypeUnread"):e.classList.remove("zycord-directMessageTypeUnread")}));const n=null!==document.querySelector(".zycord-directMessageTypeUnread");document.querySelectorAll(".zycord-NavigationNew").forEach((e=>{e.style.display=n?"block":"none"}))}function createDirectMessage({userId:e,channelId:t,avatarUrl:n,username:a,status:s,accountType:o="user"}){const r=document.createElement("div");r.className="zycord-directMessageContainer",r.dataset.channelId=t,r.dataset.userId=e,r.style.cursor="pointer",r.addEventListener("click",(()=>{currentChannelId=t,document.querySelector(".zycord-directNavigationUsername").textContent=a,fetchAndRenderMessages(),setDirectMessageUnread(t,!1),swipeMessageContainer(!0),updateStatusMessageDebounced(`Reading message from ${a}`,zycordWebsocket)}));const c=document.createElement("div");c.className="zycord-directMessageAvatar";const i=document.createElement("img");if(i.className="zycord-directMessageAvatarDisplay",i.src=n,o&&"user"!==o)c.appendChild(i);else{const t=document.createElement("div");t.className="zycord-StatusDM";const n=document.createElement("div");n.className="zycord-StatusDisplayDM zycord-StatusTypeOffline",n.dataset.userId=e,t.appendChild(n),c.appendChild(i),c.appendChild(t)}const d=document.createElement("div");d.className="zycord-directMessageContent";const l=document.createElement("div");l.className="zycord-directMessageUsername",l.textContent=a;const m=document.createElement("div");if(m.className="zycord-directMessageStatus",m.textContent=s,m.dataset.userId=e,d.appendChild(l),o&&"user"!==o){const e=document.createElement("div");e.className="zycord-ApplicationTag",e.textContent=o,l.appendChild(e)}d.appendChild(m),r.appendChild(c),r.appendChild(d);const u=document.querySelector(".zycord-ThreadWindow");u?u.appendChild(r):console.warn("ThreadWindow element not found")}function getStatusClassFromPresence(e){const t=e?.toLowerCase?.(),n={online:"zycord-StatusTypeOnline",offline:"zycord-StatusTypeOffline",idle:"zycord-StatusTypeIdle",dnd:"zycord-StatusTypeDnd"}[t];return n||(console.warn(`Unknown status: ${e}`),null)}document.getElementById("messageInput").addEventListener("input",(()=>{document.getElementById("messageInput").value.trim().length>0?startTypingLoop():stopTypingLoop()}));let idleTimer,currentStatusDebounce=!1,currentStatusMessage="";function updateStatusMessageDebounced(e,t){currentStatusMessage=e,currentStatusDebounce||(resetIdleTimer(e,t),currentStatusDebounce=!0,setTimeout((()=>{currentStatusDebounce=!1,e!==currentStatusMessage&&updateStatusMessageDebounced(currentStatusMessage,t)}),1e4))}const idleStateLabel="Idling...";function resetIdleTimer(e,t){clearTimeout(idleTimer),updateStatusMessage(e,t),idleTimer=setTimeout((()=>{updateStatusMessage(idleStateLabel,t)}),12e4)}let firstUsedTimestamp;function updateStatusMessage(e,t){if(t&&"function"==typeof t.send&&t.readyState===WebSocket.OPEN){firstUsedTimestamp||(firstUsedTimestamp=Math.floor(Date.now()));const n=[{application_id:"1396981585932455936",name:"Zycord",type:0,state:e||"Unknown",timestamps:{start:firstUsedTimestamp}}],a="idle";t.send(JSON.stringify({op:3,d:{since:null,activities:n,status:a,afk:!0}})),updateActivityData({user:{id:"827356967688339458",activities:n},status:a})}else console.warn("WebSocket not ready for sending status message.")}function updateStatusIcons(e,t,n=""){const a=zycordDataStore.get(`activities-${e}`),s={online:"zycord-StatusTypeOnline",offline:"zycord-StatusTypeOffline",idle:"zycord-StatusTypeIdle",dnd:"zycord-StatusTypeDnd"}[t.toLowerCase()];s?(document.querySelectorAll(`.zycord-StatusDisplayDM[data-user-id="${e}"]`).forEach((e=>{e.classList.forEach((t=>{t.startsWith("zycord-StatusType")&&e.classList.remove(t)})),e.classList.add(s)})),document.querySelectorAll(`.zycord-directMessageStatus[data-user-id="${e}"]`).forEach((e=>{e.textContent=n})),Array.isArray(a?.activities)&&a.activities.length>0&&a.activities.forEach((e=>{upsertActivityElement(e)}))):console.warn(`Unknown status: ${t}`)}function updateActivityData(e){const t=e?.user?.id;if(!t)return;const n=e?.status??"offline",a=Array.isArray(e?.user?.activities)?e.user.activities:[];zycordDataStore.set(`activities-${t}`,{status:n,activities:a});let s="";a.forEach((e=>{4===e.type&&"custom"===e.id&&(s=e.state||e.name||"")})),updateStatusIcons(t,n,s)}function initializeWebSocket(){const e=new WebSocket(zycordWebsocketEndpoint);return e.addEventListener("open",(()=>{currentlyReconnecting=!1,e.send(JSON.stringify({op:2,d:{token:discordAccountAuth,properties:{os:"Linux",browser:"Chrome",device:"web"}}})),updateLoadStatus("websocketConnection",!0)})),e.addEventListener("message",(t=>{try{const{op:n,t:a,d:s}=JSON.parse(t.data),o=s?.user?.id;if(!currentlyReconnecting&&10===n)return startHeartbeat(e,s.heartbeat_interval),void updateLoadStatus("websocketHeartbeat",!0);if("READY"===a){o&&updateActivityData({user:{id:o,activities:[]},status:"online"}),s?.presences?.forEach((({user:e,status:t="offline",activities:n})=>{updateActivityData({user:{id:e.id,activities:n},status:t})}));const e=s?.read_state;(e?Object.values(e).filter((({mention_count:e,id:t,last_message_id:n})=>"number"==typeof e&&e>0&&"string"==typeof t&&"string"==typeof n)):[]).forEach((({id:e,last_message_id:t})=>{setDirectMessageUnread(e,!0)})),updateLoadStatus("websocketReady",!0)}if("PRESENCE_UPDATE"===a){const e=s?.user?.id,t=s?.status??"offline",n=Array.isArray(s?.activities)?s.activities:[];e&&updateActivityData({user:{id:e,activities:n},status:t})}if("MESSAGE_CREATE"===a&&s?.channel_id&&s?.id&&currentChannelId!==s.channel_id&&setDirectMessageUnread(s.channel_id,!0),"MESSAGE_ACK"===a){console.log("Received MESSAGE_ACK:",s);const{channel_id:e,mention_count:t,message_id:n}=s||{};if(!e)return;console.log(`Message ACK received for channel ${e} with mention count ${t}`),"number"==typeof t&&t>0?(console.log(`Unread messages for channel ${e}: ${t}`),setDirectMessageUnread(e,!0)):(console.log(`No unread messages for channel ${e}, clearing state.`),setDirectMessageUnread(e,!1))}if("MESSAGE_CREATE"===a&&s?.channel_id&&s?.id){const e=document.querySelector(`.zycord-directMessageContainer[data-channel-id="${s.channel_id}"]`);if(e){const t=e.parentElement;t&&t.prepend(e)}}if("MESSAGE_CREATE"===a&&s?.channel_id&&s?.id){const e=`channel-${s.channel_id}-messages`;if(zycordDataStore.has(e)){const t=zycordDataStore.get(e);t.some((e=>e.id===s.id))||(t.push(s),zycordDataStore.set(e,t))}}if("MESSAGE_DELETE"===a&&s?.channel_id&&s?.id){const e=`channel-${s.channel_id}-messages`;if(zycordDataStore.has(e)){const t=(zycordDataStore.get(e)||[]).filter((e=>e.id!==s.id));zycordDataStore.set(e,t),currentChannelId===s.channel_id&&removeMessage(s.id),console.log(`🗑️ Message deleted: ${s.id}`)}}if("MESSAGE_UPDATE"===a&&s?.channel_id&&s?.id){const e=`channel-${s.channel_id}-messages`;if(zycordDataStore.has(e)){let t=null;const n=zycordDataStore.get(e)||[];t=n.find((e=>e.id===s.id)),console.log("Cached messages:",JSON.stringify(t,null,2));const a={messageReference:s.message_reference,edited:!!s.edited_timestamp||t?.edited_timestamp||!1,messageId:s.id,username:s.author?.global_name??t?.username??"Unknown",tag:s.author?.bot?"app":t?.tag??"",timestamp:s.timestamp?Math.floor(new Date(s.timestamp).getTime()/1e3):t?.timestamp??Math.floor(Date.now()/1e3),content:s.hasOwnProperty("content")&&null!==s.content?s.content:t?.content??"",attachments:Array.isArray(s.attachments)?s.attachments.map((e=>e.url)):t?.attachments??[],embed:Array.isArray(s.embeds)?s.embeds:t?.embed??[],reactions:Array.isArray(s.reactions)?s.reactions:t?.reactions??[],avatarSrc:s.author?.avatar?`https://cdn.discordapp.com/avatars/${s.author.id}/${s.author.avatar}.png?size=512`:t?.avatarSrc??"https://cdn.discordapp.com/embed/avatars/0.png"};currentChannelId===s.channel_id&&upsertMessage(a);const o=JSON.parse(JSON.stringify(t));o.embeds=a.embed,o.attachments=a.attachments,o.content=a.content,o.edited=a.edited,o.messageId=a.messageId,o.username=a.username,o.reactions=a.reactions;const r=[...n],c=r.findIndex((e=>e.id===s.id));-1!==c?r[c]=o:r.push(o),zycordDataStore.set(e,r)}}if("MESSAGE_CREATE"===a&&s?.channel_id&&s?.id&&currentChannelId===s.channel_id){!!document.querySelector(`[data-message-id="${s.id}"]`)||createMessageElement({messageReference:s.message_reference,edited:!!s.edited_timestamp,messageId:s.id,username:s.author?.global_name||"Unknown",tag:s.author?.bot?"app":"",timestamp:s.timestamp?Math.floor(new Date(s.timestamp).getTime()/1e3):Math.floor(Date.now()/1e3),content:s.content||"",attachments:s.attachments||[],embed:s.embeds||[],reactions:s.reactions||[],avatarSrc:`https://cdn.discordapp.com/avatars/${s.author.id}/${s.author.avatar}.png?size=512`||"https://cdn.discordapp.com/embed/avatars/0.png"})}}catch(e){console.error("WebSocket message error:",e.message)}})),e.addEventListener("close",(()=>{currentlyReconnecting||(currentlyReconnecting=!0,updateLoadStatus("channelList",!1),updateLoadStatus("websocketConnection",!1),updateLoadStatus("websocketHeartbeat",!1),updateLoadStatus("websocketReady",!1),zycordDataStore.clear(),stopHeartbeat(),reconnect())})),e.addEventListener("error",(()=>{currentlyReconnecting||(currentlyReconnecting=!0,updateLoadStatus("channelList",!1),updateLoadStatus("websocketConnection",!1),updateLoadStatus("websocketHeartbeat",!1),updateLoadStatus("websocketReady",!1),zycordDataStore.clear(),stopHeartbeat(),reconnect())})),e}function startHeartbeat(e,t){heartbeatInterval&&clearInterval(heartbeatInterval),heartbeatInterval=setInterval((()=>{e.send(JSON.stringify({op:1,d:null}))}),t)}function stopHeartbeat(){heartbeatInterval&&clearInterval(heartbeatInterval)}async function reconnect(){await new Promise((e=>setTimeout(e,5e3))),await renderDmListFromAPI(),updateLoadStatus("channelList",!0),zycordWebsocket=initializeWebSocket()}async function start(){await new Promise((e=>setTimeout(e,5e3))),await renderDmListFromAPI(),updateLoadStatus("channelList",!0),zycordWebsocket=initializeWebSocket()}start();
+// Check if auth token is already stored
+let discordAccountAuth = sessionStorage.getItem("discordAuth");
+
+if (!discordAccountAuth) {
+    // Prompt user to enter their Discord auth token
+    discordAccountAuth = prompt("Enter your Discord account auth token:");
+
+    // Validate and store it temporarily
+    if (discordAccountAuth && discordAccountAuth.startsWith("OD")) {
+        sessionStorage.setItem("discordAuth", discordAccountAuth);
+    } else {
+        alert("Invalid or missing token. Please try again.");
+        // Optionally redirect or disable features here
+    }
+}
+
+const originalLog = console.log;
+const originalError = console.error;
+const originalWarn = console.warn;
+
+console.log = function (...args) {
+    originalLog.apply(console, args);
+    const logContent = document.createElement("div");
+    logContent.className = "zycord-ConsoleContent zycord-LogConsole";
+    logContent.textContent = args.join(' ')
+    document.querySelector('.zycord-ConsoleWindow').appendChild(logContent)
+};
+console.error = function (...args) {
+    originalError.apply(console, args);
+    const logContent = document.createElement("div");
+    logContent.className = "zycord-ConsoleContent zycord-ErrorConsole";
+    logContent.textContent = args.join(' ')
+    document.querySelector('.zycord-ConsoleWindow').appendChild(logContent)
+};
+console.warn = function (...args) {
+    originalWarn.apply(console, args);
+    const logContent = document.createElement("div");
+    logContent.className = "zycord-ConsoleContent zycord-WarnConsole";
+    logContent.textContent = args.join(' ')
+    document.querySelector('.zycord-ConsoleWindow').appendChild(logContent)
+};
+
+const requiredObjects = ['channelList', 'websocketConnection', 'websocketHeartbeat', 'websocketReady']; // Customize as needed
+const loadStatus = {};
+
+// Initialize all objects as not loaded
+requiredObjects.forEach(obj => loadStatus[obj] = false);
+
+function updateLoadStatus(objectName, isLoaded) {
+    loadStatus[objectName] = isLoaded;
+
+    const statusLabel = isLoaded ? "Ready" : "Error or Unloaded";
+    console.log(`[${objectName}] - ${statusLabel}`);
+
+    checkAllLoaded();
+}
+
+function checkAllLoaded() {
+    const allLoaded = requiredObjects.every(obj => loadStatus[obj]);
+    if (allLoaded) {
+        hideLoad();
+    } else {
+        showLoad();
+    }
+}
+
+let focusMenuStartY = 0;
+let focusMenuDeltaY = 0;
+let isDragging = false;
+let gestureLocked = null;
+let dragBuffer = 0;
+let scrollLocked = false;
+
+
+function createFocusContainer(messageId) {
+    // Create container structure
+    const focusContainer = document.createElement("div");
+    focusContainer.className = "zycord-FocusContainer";
+
+    focusContainer.addEventListener("click", (e) => {
+        const clickedInsideMenu = bottomFocusContainer.contains(e.target);
+        if (!clickedInsideMenu) {
+            hideSelf(); // 📦 Removes the menu entirely after transition
+        }
+
+    });
+
+    const bottomFocusContainer = document.createElement("div");
+    bottomFocusContainer.className = "zycord-BottomFocusContainer";
+
+    const dragContainer = document.createElement("div");
+    dragContainer.className = "zycord-MenuDragContainer";
+    const dragIcon = document.createElement("div");
+    dragIcon.className = "zycord-MenuDragIcon";
+    dragContainer.appendChild(dragIcon);
+
+    const menuContainer = document.createElement("div");
+    menuContainer.className = "zycord-BottomMenuContainer";
+
+    const menuItems = [{
+        text: "Delete",
+        icon: "https://cdn3.emoji.gg/emojis/4151-delete-guild.png"
+    }, {
+        text: "Edit",
+        icon: "https://cdn3.emoji.gg/emojis/3639-edit.png"
+    }, {
+        text: "Reply",
+        icon: "https://cdn3.emoji.gg/emojis/8758-reply-msg.png"
+    }, {
+        text: "Share",
+        icon: "https://cdn3.emoji.gg/emojis/6344-communication-requests.png"
+    }, {
+        text: "Copy",
+        icon: "https://cdn3.emoji.gg/emojis/2716-utilities.png"
+    }, {
+        text: "Pin",
+        icon: "https://cdn3.emoji.gg/emojis/7896-pinned.png"
+    }, {
+        text: "Report",
+        icon: "https://cdn3.emoji.gg/emojis/4645-report-message.png"
+    }, {
+        text: "Block",
+        icon: "https://cdn3.emoji.gg/emojis/4811-report-raid.png"
+    }];
+    const actionMap = {
+        "Delete": () => deleteMessage(messageId),
+        "Edit": () => editMessageAction(messageId),
+        "Reply": () => replyMessageAction(messageId)
+    };
+
+    menuItems.forEach(menuData => {
+        const button = document.createElement("div");
+        button.className = "zycord-BottomMenuButton";
+
+        const icon = document.createElement("div");
+        icon.className = "zycord-BottomMenuIcon";
+        icon.style.maskImage = `url(${menuData.icon})`;
+        icon.style.webkitMaskImage = `url(${menuData.icon})`;
+
+        const label = document.createElement("div");
+        label.className = "zycord-BottomMenuText";
+        label.textContent = menuData.text;
+
+        button.appendChild(icon);
+        button.appendChild(label);
+        menuContainer.appendChild(button);
+
+        button.addEventListener("click", () => {
+            const action = actionMap[menuData.text];
+            if (action) action();
+            hideSelf(); // Close the menu after action
+        });
+    });
+
+
+    bottomFocusContainer.appendChild(dragContainer);
+    bottomFocusContainer.appendChild(menuContainer);
+    focusContainer.appendChild(bottomFocusContainer);
+
+    focusContainer.style.opacity = "0";
+    focusContainer.style.transform = "translateY(20px)";
+    focusContainer.style.transition = "opacity 0.4s ease, transform 0.4s ease";
+
+
+
+    // Inject into container list
+    const list = document.querySelector(".zycord-FocusContainerList");
+    if (list) {
+        list.appendChild(focusContainer);
+        requestAnimationFrame(() => {
+            focusContainer.style.opacity = "1";
+            focusContainer.style.transform = "translateY(0)";
+        });
+    }
+
+    const scrollContainer = menuContainer; // Adjust this if your scroll target is nested differently
+    const bottomMenu = bottomFocusContainer;
+
+    function hideSelf() {
+        bottomMenu.style.transition = "transform 0.25s ease";
+        bottomMenu.style.transform = "translateY(100%)";
+        focusContainer.style.transition = "opacity 0.3s ease";
+        focusContainer.style.opacity = "0";
+        setTimeout(() => {
+            focusContainer.remove(); // 🔥 Full teardown
+        }, 300);
+    }
+
+
+    bottomMenu.addEventListener("touchstart", (e) => {
+        if (e.touches.length === 1) {
+            focusMenuStartY = e.touches[0].clientY;
+            dragBuffer = 0;
+            focusMenuDeltaY = 0;
+            isDragging = true;
+            gestureLocked = null;
+            scrollLocked = false;
+            bottomMenu.style.transition = "none";
+            bottomMenu.style.willChange = "transform";
+        }
+    });
+
+    bottomMenu.addEventListener("touchmove", (e) => {
+        if (!isDragging) return;
+        const y = e.touches[0].clientY;
+        focusMenuDeltaY = y - focusMenuStartY;
+
+        if (gestureLocked === null && Math.abs(focusMenuDeltaY) > 10) {
+            gestureLocked = "drag";
+        }
+
+        if (gestureLocked === "drag") {
+            const isAtTop = scrollContainer.scrollTop <= 0;
+
+            if (!isAtTop) {
+                dragBuffer += focusMenuDeltaY;
+                focusMenuStartY = y;
+                return;
+            }
+
+            const totalDrag = focusMenuDeltaY + dragBuffer;
+            if (totalDrag > 0) {
+                const dragPercent = Math.min((totalDrag / window.innerHeight) * 100, 100);
+                bottomMenu.style.transform = `translateY(${dragPercent}vh)`;
+                e.preventDefault();
+            }
+        }
+    });
+
+    bottomMenu.addEventListener("touchend", () => {
+        if (!isDragging) return;
+        isDragging = false;
+
+        const totalDrag = focusMenuDeltaY + dragBuffer;
+        bottomMenu.style.transition = "transform 0.25s ease";
+        focusContainer.style.transition = "opacity 0.3s ease";
+        bottomMenu.style.willChange = "auto";
+
+        if (gestureLocked === "drag" && totalDrag > window.innerHeight * 0.25) {
+            hideSelf();
+        } else {
+            bottomMenu.style.transform = "translateY(0)";
+        }
+
+
+        gestureLocked = null;
+        dragBuffer = 0;
+    });
+
+    return focusContainer;
+}
+async function fetchCachedUserProfile(userId, forceRefresh = false) {
+    const storeKey = `users-${userId}-profile`;
+
+    try {
+        // Fetch from API if not cached or if forceRefresh is true
+        if (forceRefresh || !zycordDataStore.has(storeKey)) {
+            const response = await fetch(
+                `https://discord.com/api/v9/users/${userId}/profile?type=popout&with_mutual_guilds=true&with_mutual_friends=true&with_mutual_friends_count=false`,
+                {
+                    headers: {
+                        Authorization: discordAccountAuth,
+                        "Content-Type": "application/json"
+                    }
+                }
+            );
+
+            if (!response.ok) {
+                console.error(`Failed to fetch user profile. Status: ${response.status}`);
+                return null;
+            }
+
+
+
+            const data = await response.json();
+            zycordDataStore.set(storeKey, data);
+
+            console.log(JSON.stringify(data));
+        }
+
+        const jsonResponse = zycordDataStore.get(storeKey);
+
+        if (!jsonResponse || !jsonResponse.user) {
+            console.warn("User data missing from response.");
+            return null;
+        }
+
+        // Optional normalization for UI rendering
+        return jsonResponse
+    } catch (err) {
+        console.error("Error fetching or parsing user profile:", err);
+        return null;
+    }
+}
+
+function formatElapsedTime(timestamp) {
+    const now = Date.now();
+    const elapsedMs = Math.max(0, now - timestamp);
+    const seconds = Math.floor(elapsedMs / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+
+    if (hours >= 1) return `${hours} hr${hours > 1 ? "s" : ""}`;
+    if (minutes >= 1) return `${minutes} min${minutes > 1 ? "s" : ""}`;
+    return `${seconds} sec${seconds !== 1 ? "s" : ""}`;
+}
+
+function resolveActivityTimestamp(act) {
+    return act.created_at ?? act?.timestamps?.start ?? Date.now();
+}
+
+function resolveActivityIconUrl(act) {
+    const rawImage = act?.assets?.large_image;
+    if (!rawImage) return "https://cdn.discordapp.com/embed/avatars/0.png";
+
+    if (rawImage.startsWith("mp:external/")) {
+        const externalPath = rawImage.slice("mp:external/".length);
+        return `https://media.discordapp.net/external/${externalPath}`;
+    }
+
+    return `https://cdn.discordapp.com/app-assets/${act.application_id}/${rawImage}`;
+}
+
+function createActivityElement(act) {
+    const profileContent = document.createElement("div");
+    profileContent.className = "ProfileContent";
+    profileContent.dataset.activityId = act.application_id;
+
+    const activityContainer = document.createElement("div");
+    activityContainer.className = "ProfileActivityContainer";
+    activityContainer.dataset.activityId = act.application_id;
+
+    const activityType = document.createElement("div");
+    activityType.className = "ProfileActivityType";
+    activityType.textContent = `Playing ${act.name}`;
+
+    const activityDetails = document.createElement("div");
+    activityDetails.className = "ProfileActivityDetails";
+
+    const activityIcon = document.createElement("div");
+    activityIcon.className = "ProfileActivityIcon";
+    const activityImg = document.createElement("img");
+    activityImg.src = resolveActivityIconUrl(act);
+    activityImg.className = "ProfileActivityDisplay";
+    activityIcon.appendChild(activityImg);
+
+    const activityContent = document.createElement("div");
+    activityContent.className = "ProfileActivityContent";
+
+    const activityHeader = document.createElement("div");
+    activityHeader.className = "ProfileActivityHeader";
+    activityHeader.textContent = act.name;
+
+    const activityStartTimestamp = resolveActivityTimestamp(act);
+    const activityTime = document.createElement("div");
+    activityTime.className = "ProfileActivityTime";
+
+    function updateActivityTime() {
+        activityTime.textContent = formatElapsedTime(activityStartTimestamp);
+    }
+
+    updateActivityTime();
+    setInterval(updateActivityTime, 1000);
+
+    activityContent.appendChild(activityHeader);
+
+    if (act?.details?.trim()) {
+        const activityState = document.createElement("div");
+        activityState.className = "ProfileActivityInfoDetails";
+        activityState.textContent = act.details;
+        activityContent.appendChild(activityState);
+    }
+
+    if (act?.state?.trim()) {
+        const activityState = document.createElement("div");
+        activityState.className = "ProfileActivityState";
+        activityState.textContent = act.state;
+        activityContent.appendChild(activityState);
+    }
+
+    activityContent.appendChild(activityTime);
+    activityDetails.appendChild(activityIcon);
+    activityDetails.appendChild(activityContent);
+    activityContainer.appendChild(activityType);
+    activityContainer.appendChild(activityDetails);
+    profileContent.appendChild(activityContainer);
+
+    return profileContent;
+}
+
+function renderActivities(activity, profileContainer) {
+    const acts = activity?.activities ?? [];
+    acts.forEach((act) => {
+        if (act.type === 0) {
+            const activityElement = createActivityElement(act);
+            profileContainer.appendChild(activityElement);
+        }
+    });
+}
+
+function upsertActivityElement(act) {
+    if (act?.application_id) {
+        const activityId = act.application_id;
+        const container = document.querySelector(`.ProfileContent[data-activity-id="${activityId}"]`);
+        if (container) {
+            const existing = container.querySelector(`.ProfileActivityContainer[data-activity-id="${activityId}"]`);
+            const newElement = createActivityElement(act);
+            const toReplace = newElement?.querySelector(`.ProfileActivityContainer[data-activity-id="${activityId}"]`);
+
+            if (toReplace) {
+                container.replaceChild(toReplace, existing);
+            } else {
+                container.appendChild(newElement);
+            }
+        }
+    }
+}
+
+async function showDiscordUserProfileOverlay(userId) {
+    const jsonResponse = await fetchCachedUserProfile(userId);
+    const user = jsonResponse.user
+
+    const avatarUrl = user.avatar
+        ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=2048`
+        : "https://cdn.discordapp.com/embed/avatars/0.png";
+
+    const bannerUrl = user.banner
+        ? `https://cdn.discordapp.com/banners/${user.id}/${user.banner}.png?size=2048`
+        : "";
+
+    const activity = zycordDataStore.get(`activities-${userId}`);
+    console.log(JSON.stringify(activity));
+    const status = activity?.status || "offline";
+    const statusClass = getStatusClassFromPresence(status);
+
+    const focusContainer = document.createElement("div");
+    focusContainer.className = "zycord-FocusContainer";
+
+    const popout = document.createElement("div");
+    popout.className = "ProfilePopout";
+
+    const dragContainer = document.createElement("div");
+    dragContainer.className = "zycord-MenuDragContainer";
+    const dragIcon = document.createElement("div");
+    dragIcon.className = "zycord-MenuDragIcon";
+    dragContainer.appendChild(dragIcon);
+    popout.appendChild(dragContainer);
+
+    const banner = document.createElement("div");
+    banner.className = "ProfileBanner";
+    banner.style.backgroundColor = user.banner_color;
+
+    if (bannerUrl) {
+        const bannerImg = document.createElement("img");
+        bannerImg.src = bannerUrl;
+        bannerImg.className = "ProfileBannerDisplay";
+        banner.appendChild(bannerImg);
+    }
+
+    const avatarContainer = document.createElement("div");
+    avatarContainer.className = "ProfileAvatar";
+
+    const avatarImg = document.createElement("img");
+    avatarImg.src = avatarUrl;
+    avatarImg.className = "ProfileAvatarDisplay";
+
+    const statusDiv = document.createElement("div");
+    statusDiv.className = "ProfileStatus";
+
+    const statusIcon = document.createElement("div");
+    statusIcon.className = `ProfileStatusDisplay ${statusClass}`;
+    statusDiv.appendChild(statusIcon);
+
+    avatarContainer.appendChild(avatarImg);
+    avatarContainer.appendChild(statusDiv);
+
+    const header = document.createElement("div");
+    header.className = "ProfileHeader";
+    header.appendChild(banner);
+    header.appendChild(avatarContainer);
+
+    const nameDiv = document.createElement("div");
+    nameDiv.className = "ProfileName";
+    nameDiv.textContent = user.global_name || user.username;
+
+    //zycord-UsernameContainer
+    const UsernameContainer = document.createElement("div");
+    UsernameContainer.className = "zycord-UsernameContainer";
+
+    const usernameDiv = document.createElement("div");
+    usernameDiv.className = "ProfileUsername";
+    usernameDiv.textContent = `@${user.username}${user.discriminator !== "0" ? "#" + user.discriminator : ""}`;
+
+    const detailsDiv = document.createElement("div");
+    detailsDiv.className = "ProfileDetails";
+
+    UsernameContainer.appendChild(usernameDiv);
+    detailsDiv.append(nameDiv, UsernameContainer);
+
+    if (jsonResponse.user_profile.pronouns !== "") {
+        const MutedDotSpacer = document.createElement("div");
+        MutedDotSpacer.className = "zycord-MutedDotSpacer";
+
+        const pronounsDiv = document.createElement("div");
+        pronounsDiv.className = "ProfileUsername";
+        pronounsDiv.textContent = jsonResponse.user_profile.pronouns;
+
+        UsernameContainer.append(MutedDotSpacer, pronounsDiv)
+    }
+
+    if (jsonResponse.badges.length > 0) {
+        const ProfileBadgeContainer = document.createElement("div");
+        ProfileBadgeContainer.className = "zycord-ProfileBadgeContainer";
+
+        jsonResponse.badges.forEach((badge) => {
+            const ProfileBadgeImage = document.createElement("img");
+            ProfileBadgeImage.className = "zycord-ProfileBadgeImage";
+            ProfileBadgeImage.src = `https://cdn.discordapp.com/badge-icons/${badge.icon}.png`
+            ProfileBadgeContainer.appendChild(ProfileBadgeImage);
+        });
+
+        detailsDiv.appendChild(ProfileBadgeContainer)
+    }
+
+    const bioContainer = document.createElement("div");
+    bioContainer.className = "ProfileContentContainer";
+
+    const bioHeader = document.createElement("div");
+    bioHeader.className = "ProfileContentHeader";
+    bioHeader.textContent = "About Me";
+
+    const bioText = document.createElement("div");
+    bioText.className = "ProfileContentText";
+
+    if (user.bio) {
+        user.bio.split("\n").forEach(line => {
+            const span = document.createElement("span");
+            span.textContent = line;
+            bioText.appendChild(span);
+            bioText.appendChild(document.createElement("br"));
+        });
+    }
+
+    bioContainer.appendChild(bioHeader);
+    bioContainer.appendChild(bioText);
+
+    const dateContainer = document.createElement("div");
+    dateContainer.className = "ProfileContentContainer";
+
+    const dateHeader = document.createElement("div");
+    dateHeader.className = "ProfileContentHeader";
+    dateHeader.textContent = "Member Since";
+
+    const dateText = document.createElement("div");
+    dateText.className = "ProfileContentText";
+    dateText.textContent = new Date().toLocaleDateString(); // You could swap in `user.created_at` or similar
+
+    dateContainer.appendChild(dateHeader);
+    dateContainer.appendChild(dateText);
+
+    const content = document.createElement("div");
+    content.className = "ProfileContent";
+    content.appendChild(bioContainer);
+    content.appendChild(dateContainer);
+
+    const profileContainer = document.createElement("div");
+    profileContainer.className = "ProfileContainer";
+    profileContainer.appendChild(detailsDiv);
+    profileContainer.appendChild(content);
+
+    if (activity?.activities?.length > 0) {
+        renderActivities(activity, profileContainer);
+    }
+
+    popout.appendChild(header);
+    popout.appendChild(profileContainer);
+
+    focusContainer.style.opacity = "0";
+    focusContainer.style.transform = "translateY(20px)";
+    focusContainer.style.transition = "opacity 0.4s ease, transform 0.4s ease";
+
+    focusContainer.appendChild(popout);
+    focusContainer.addEventListener("click", e => {
+        if (!popout.contains(e.target)) {
+            bottomMenu.style.transition = "transform 0.3s ease";
+            bottomMenu.style.transform = "translateY(100%) translateX(-50%)";
+            focusContainer.style.transition = "opacity 0.3s ease";
+            focusContainer.style.opacity = "0";
+            setTimeout(() => {
+                focusContainer.remove();
+            }, 300);
+        }
+    });
+
+    const focusContainerList = document.querySelector(".zycord-FocusContainerList");
+    if (focusContainerList) {
+        focusContainerList.appendChild(focusContainer);
+        requestAnimationFrame(() => {
+            focusContainer.style.opacity = "1";
+            focusContainer.style.transform = "translateY(0)";
+        });
+    }
+
+    let isDragging = false;
+    let gestureLocked = null;
+    let dragStartY = 0;
+    let dragDeltaY = 0;
+    let dragBuffer = 0;
+
+    const scrollContainer = popout;
+    const bottomMenu = popout; // ProfilePopout is the draggable target
+
+    bottomMenu.addEventListener("touchstart", (e) => {
+        if (e.touches.length === 1) {
+            dragStartY = e.touches[0].clientY;
+            dragDeltaY = 0;
+            dragBuffer = 0;
+            isDragging = true;
+            gestureLocked = null;
+            bottomMenu.style.transition = "none";
+            bottomMenu.style.willChange = "transform";
+        }
+    });
+
+    bottomMenu.addEventListener("touchmove", (e) => {
+        if (!isDragging) return;
+        const y = e.touches[0].clientY;
+        dragDeltaY = y - dragStartY;
+
+        if (gestureLocked === null && Math.abs(dragDeltaY) > 10) {
+            gestureLocked = "profileDrag";
+        }
+
+        if (gestureLocked === "profileDrag") {
+            const isAtTop = scrollContainer?.scrollTop <= 0;
+
+            if (!isAtTop) {
+                dragBuffer += dragDeltaY;
+                dragStartY = y;
+                return;
+            }
+
+            const totalDrag = dragDeltaY + dragBuffer;
+            if (totalDrag > 0) {
+                const dragPercent = Math.min((totalDrag / window.innerHeight) * 100, 100);
+                bottomMenu.style.transform = `translateY(${dragPercent}vh) translateX(-50%)`;
+                scrollContainer.style.overflow = "hidden";
+                e.preventDefault();
+            }
+        }
+    });
+
+    bottomMenu.addEventListener("touchend", () => {
+        if (!isDragging) return;
+        isDragging = false;
+
+        const totalDrag = dragDeltaY + dragBuffer;
+        bottomMenu.style.transition = "transform 0.25s ease";
+        bottomMenu.style.willChange = "auto";
+
+        if (gestureLocked === "profileDrag" && totalDrag > window.innerHeight * 0.25) {
+            bottomMenu.style.transition = "transform 0.3s ease";
+            bottomMenu.style.transform = "translateY(100%) translateX(-50%)";
+            focusContainer.style.transition = "opacity 0.3s ease";
+            focusContainer.style.opacity = "0";
+            setTimeout(() => {
+                focusContainer.remove();
+            }, 300);
+        } else {
+            scrollContainer.style.overflow = "auto";
+            bottomMenu.style.transform = "translateY(0) translateX(-50%)";
+        }
+
+        gestureLocked = null;
+        dragBuffer = 0;
+    });
+}
+
+function createFocusConfirmMenu({ title, description, onConfirm, onCancel }) {
+    // Create a fresh container just for this menu
+    const focusContainer = document.createElement('div');
+    focusContainer.className = 'zycord-FocusContainer';
+
+    const menu = document.createElement('div');
+    menu.className = 'zycord-FocusConfirmMenu';
+
+    const content = document.createElement('div');
+    content.className = 'zycord-ConfirmMenuContent';
+
+    const titleEl = document.createElement('div');
+    titleEl.className = 'zycord-ConfirmMenuTitle';
+    titleEl.textContent = title || 'Delete Message';
+
+    const descriptionEl = document.createElement('div');
+    descriptionEl.className = 'zycord-ConfirmMenuDescription';
+    descriptionEl.textContent = description || 'Are you sure you want to delete this message?';
+
+    content.appendChild(titleEl);
+    content.appendChild(descriptionEl);
+
+    const actions = document.createElement('div');
+    actions.className = 'zycord-ConfirmMenuActions';
+
+    const cancelBtn = document.createElement('div');
+    cancelBtn.className = 'zycord-ConfirmMenuActionButton';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.addEventListener('click', () => {
+        if (typeof onCancel === 'function') onCancel();
+        focusContainer.remove();
+    });
+
+    const confirmBtn = document.createElement('div');
+    confirmBtn.className = 'zycord-ConfirmMenuActionButton';
+    confirmBtn.textContent = 'Confirm';
+    confirmBtn.addEventListener('click', () => {
+        if (typeof onConfirm === 'function') onConfirm();
+        focusContainer.remove();
+    });
+
+    actions.appendChild(cancelBtn);
+    actions.appendChild(confirmBtn);
+
+    menu.appendChild(content);
+    menu.appendChild(actions);
+
+    focusContainer.appendChild(menu);
+
+    // Inject directly into body for true isolation
+    const focusContainerList = document.querySelector('.zycord-FocusContainerList');
+    if (focusContainerList) focusContainerList.appendChild(focusContainer);
+
+    return menu;
+}
+
+
+
+
+function attachSwipeToElement(element, onSwipeConfirmed) {
+    let startX, startY, currentX, deltaX;
+    const gestureName = "dismiss-right-to-left";
+    let customGestureLocked = null;
+
+    // Suggested tweak
+    function updateGestureLock(gesture) {
+        if (gesture === gestureName) {
+            gestureLocked = gestureName;
+            customGestureLocked = gestureName;
+        } else if (gesture === null) {
+            gestureLocked = null;
+            customGestureLocked = null;
+        } else {
+            customGestureLocked = gestureName;
+        }
+    }
+
+    function fetchGestureLock() {
+        return gestureLocked || customGestureLocked;
+    }
+
+    let gesturePrimed = false;
+    let bufferFrame = 0;
+
+    const onTouchStart = (t) => {
+        if (t.touches.length !== 1) return;
+        startX = t.touches[0].clientX;
+        startY = t.touches[0].clientY;
+        isDragging = true;
+        gesturePrimed = false;
+        bufferFrame = 0;
+        updateGestureLock(null);
+        element.style.transition = "none";
+        element.style.willChange = "transform";
+        element.style.transform = "translateZ(0)";
+    };
+
+
+
+    const onTouchMove = (t) => {
+        if (!isDragging) return;
+
+        const e = t.touches[0];
+        currentX = e.clientX;
+        const deltaY = e.clientY - startY;
+        const deltaXRaw = startX - currentX;
+        const absX = Math.abs(deltaXRaw);
+        const absY = Math.abs(deltaY);
+        const swipeThreshold = 10;
+        const YMaxThreshold = 5;
+
+        if (!fetchGestureLock()) {
+            if (absY > YMaxThreshold) {
+                updateGestureLock("scroll");
+            } else if (absX < swipeThreshold || absX < absY) {
+                updateGestureLock("scroll");
+            } else {
+                const direction = deltaXRaw > 0 ? "left" : "right"; // 🧭 add directional nuance
+                if (direction === "left") {
+                    updateGestureLock(gestureName);
+                } else {
+                    updateGestureLock("scroll");
+                }
+            }
+        }
+
+
+        if (fetchGestureLock() === gestureName) {
+            // Exit early if Y exceeds threshold to preserve horizontal intent
+
+
+            if (!gesturePrimed) {
+                bufferFrame++;
+                if (bufferFrame > 2) gesturePrimed = true;
+            }
+
+            if (gesturePrimed && deltaXRaw > 0) {
+                deltaX = deltaXRaw;
+                const progress = Math.min(deltaX / window.innerWidth * 100, 100);
+                element.style.transform = `translateX(-${progress}vw)`;
+                t.preventDefault();
+            }
+        }
+    };
+
+
+
+    const onTouchEnd = () => {
+        if (!isDragging || fetchGestureLock() !== gestureName) return;
+
+        isDragging = false;
+        updateGestureLock(null);
+
+        if (deltaX > 0.25 * window.innerWidth) {
+            if (typeof onSwipeConfirmed === "function") onSwipeConfirmed(element);
+        }
+
+        element.style.transition = "transform 0.25s ease";
+        element.style.transform = "translateX(0)";
+        element.style.willChange = "auto";
+    };
+
+    element.addEventListener("touchstart", onTouchStart);
+    element.addEventListener("touchmove", onTouchMove);
+    element.addEventListener("touchend", onTouchEnd);
+}
+
+document.getElementById("closeMessagesButton").addEventListener("click", () => swipeMessageContainer(false));
+document.getElementById('fileInput').addEventListener('change', function (event) {
+    const previewContainer = document.getElementById('zycord-MediaPreviewContainer');
+    const files = Array.from(event.target.files);
+
+    files.forEach(file => {
+        zycordMediaStore.addFile(file);
+
+        const mediaWrapper = document.createElement('div');
+        mediaWrapper.className = 'zycord-MediaPreviewItemWrapper';
+        mediaWrapper.style.position = 'relative';
+        mediaWrapper.style.display = 'inline-block';
+
+        const removeBtn = document.createElement('span');
+        removeBtn.textContent = 'X';
+        removeBtn.className = 'zycord-RemoveBtn';
+
+        removeBtn.addEventListener('click', () => {
+            zycordMediaStore.removeFile(file);
+            mediaWrapper.remove();
+            previewContainer.style.display = zycordMediaStore.hasFiles() ? 'flex' : 'none';
+        });
+
+        if (file.type.startsWith('image/')) {
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(file);
+            img.className = 'zycord-MediaPreviewItem';
+            mediaWrapper.appendChild(img);
+        } else {
+            const fileLabel = document.createElement('div');
+            fileLabel.textContent = file.name;
+            fileLabel.className = 'zycord-MediaPreviewItem';
+            fileLabel.style.cssText = `
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                height: 80px;
+                padding: 10px;
+                background: #222;
+                color: #fff;
+            `;
+            mediaWrapper.appendChild(fileLabel);
+        }
+
+        mediaWrapper.appendChild(removeBtn);
+        previewContainer.appendChild(mediaWrapper);
+    });
+
+    previewContainer.style.display = zycordMediaStore.hasFiles() ? 'flex' : 'none';
+});
+
+
+
+function formatUnixTimestamp(unixTimestamp) {
+    const now = new Date();
+    const inputDate = new Date(unixTimestamp * 1000);
+
+    // Strip time for comparison
+    const nowDayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const inputDayStart = new Date(inputDate.getFullYear(), inputDate.getMonth(), inputDate.getDate());
+
+    // Calculate difference in days
+    const msPerDay = 86400000;
+    const diffInDays = (nowDayStart - inputDayStart) / msPerDay;
+
+    // Format time part
+    const hours = inputDate.getHours();
+    const minutes = inputDate.getMinutes();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const formattedHours = hours % 12 === 0 ? 12 : hours % 12;
+    const formattedMinutes = minutes.toString().padStart(2, '0');
+    const timePart = `${formattedHours}:${formattedMinutes} ${ampm}`;
+
+    // Determine label
+    if (diffInDays === 0) {
+        return `${timePart}`;
+    } else if (diffInDays === 1) {
+        return `Yesterday at ${timePart}`;
+    } else {
+        const mm = (inputDate.getMonth() + 1).toString().padStart(2, '0');
+        const dd = inputDate.getDate().toString().padStart(2, '0');
+        const yyyy = inputDate.getFullYear();
+        return `${mm}/${dd}/${yyyy} ${timePart}`;
+    }
+}
+
+function removeMessage(messageId) {
+    const container = document.querySelector('.zycord-MessageContainerList');
+    const messageEl = container.querySelector(`[data-message-id="${messageId}"]`);
+
+    if (messageEl) {
+        container.removeChild(messageEl);
+        console.log(`🗑️ Message removed from UI: ${messageId}`);
+    } else {
+        console.warn(`No message found to remove: ${messageId}`);
+    }
+}
+
+function getFileExtension(url) {
+    const cleanUrl = url.split('?')[0];
+    return cleanUrl.split('.').pop().toLowerCase();
+}
+
+function createCustomAudioPlayer(filename, src) {
+    const icons = {
+        play: 'https://cdn3.emoji.gg/emojis/5134-resume.png',
+        pause: 'https://cdn3.emoji.gg/emojis/6148-pause.png',
+        back: 'https://cdn3.emoji.gg/emojis/5134-backward.png',
+        forward: 'https://cdn3.emoji.gg/emojis/5134-forward.png',
+        replay: 'https://cdn3.emoji.gg/emojis/8562-replay.png'
+    };
+
+    const container = document.createElement('div');
+    container.className = 'zycord-CustomAudioAttachment';
+
+    const title = document.createElement('div');
+    title.className = 'zycord-CustomAudioTitle';
+    title.textContent = filename;
+
+    const audio = document.createElement('audio');
+    audio.src = src;
+    audio.preload = 'metadata';
+
+    const progressBar = document.createElement('div');
+    progressBar.className = 'zycord-CustomAudioBar';
+
+    const progressFill = document.createElement('div');
+    progressFill.className = 'zycord-CustomAudioBarFill';
+    progressBar.appendChild(progressFill);
+
+    const btnContainer = document.createElement('div');
+    btnContainer.className = 'zycord-CustomAudioButtonsContainer';
+
+    // 🛠️ Helper to build icon buttons
+    function createIconBtn(type) {
+        const btn = document.createElement('div');
+        btn.className = 'zycord-CustomAudioButton';
+
+        const icon = document.createElement('div');
+        icon.className = 'zycord-CustomAudioIcon';
+        icon.style.maskImage = `url("${icons[type]}")`;
+        icon.style.webkitMaskImage = icon.style.maskImage;
+
+        btn.appendChild(icon);
+        return { btn, icon };
+    }
+
+    const { btn: backBtn } = createIconBtn('back');
+    const { btn: playBtn, icon: playIcon } = createIconBtn('play');
+    const { btn: forwardBtn } = createIconBtn('forward');
+    btnContainer.append(backBtn, playBtn, forwardBtn);
+
+    let isPlaying = false;
+    let isEnded = false;
+
+    // 🎧 Progress bar logic
+    function updateProgress() {
+        const percent = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
+        progressFill.style.width = `${percent}%`;
+    }
+
+    audio.addEventListener('loadedmetadata', updateProgress);
+    audio.addEventListener('timeupdate', updateProgress);
+
+    audio.addEventListener('ended', () => {
+        isPlaying = false;
+        isEnded = true;
+        playIcon.style.maskImage = `url("${icons.replay}")`;
+        playIcon.style.webkitMaskImage = playIcon.style.maskImage;
+    });
+
+    backBtn.addEventListener('click', () => {
+        audio.currentTime = Math.max(0, audio.currentTime - 10);
+    });
+
+    forwardBtn.addEventListener('click', () => {
+        audio.currentTime = Math.min(audio.duration, audio.currentTime + 10);
+    });
+
+    playBtn.addEventListener('click', () => {
+        if (isEnded || audio.currentTime === audio.duration) {
+            audio.currentTime = 0;
+            isEnded = false;
+        }
+
+        if (audio.paused) {
+            audio.play();
+            isPlaying = true;
+            playIcon.style.maskImage = `url("${icons.pause}")`;
+            playIcon.style.webkitMaskImage = playIcon.style.maskImage;
+        } else {
+            audio.pause();
+            isPlaying = false;
+            playIcon.style.maskImage = `url("${icons.play}")`;
+            playIcon.style.webkitMaskImage = playIcon.style.maskImage;
+        }
+    });
+
+    container.append(title, audio, progressBar, btnContainer);
+    return container;
+}
+
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function createMessageElement({
+    messageReference = {},
+    edited,
+    messageId,
+    username,
+    tag,
+    timestamp,
+    content,
+    attachments = [],
+    embed = null,
+    reactions = [],
+    avatarSrc = ''
+}) {
+    // Exit early if there's nothing to render
+    const hasContent = Boolean(content && content.trim() && content !== "" && content.trim() !== "");
+    const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
+    const hasEmbed = Array.isArray(embed) && embed.length > 0
+
+    if (!hasContent && !hasAttachments && !hasEmbed) {
+        return;
+    }
+
+    const messageEl = document.createElement('div');
+    messageEl.className = 'zycord-ChannelMessage';
+    if (messageReference.message_id) {
+        messageEl.classList.add('zycord-MessageReplyActive');
+    }
+    messageEl.setAttribute('data-message-id', messageId);
+    messageEl.setAttribute('data-message-timestamp', timestamp);
+
+    const directMessageReplyDisplayEl = document.createElement('div');
+    directMessageReplyDisplayEl.className = 'zycord-DirectMessageReplyDisplay';
+
+    const directMessageContentDisplayEl = document.createElement('div');
+    directMessageContentDisplayEl.className = 'zycord-DirectMessageContentDisplay';
+
+    if (messageReference && messageReference.message_id) {
+        const replyMessageData = zycordDataStore.get(`channel-${messageReference.channel_id}-messages`)?.find(msg => msg.id === messageReference.message_id);
+        if (replyMessageData) {
+            const replyUsername = `@${replyMessageData.author.global_name || 'Unknown User'}`;
+            const replyContent = replyMessageData.content || 'No content available';
+
+            const zycordDMreplyUsername = document.createElement('div');
+            zycordDMreplyUsername.className = 'zycord-DM-replyUsername';
+            zycordDMreplyUsername.textContent = replyUsername;
+
+            const zycordDMreplyContent = document.createElement('div');
+            zycordDMreplyContent.className = 'zycord-DM-replyContent';
+            zycordDMreplyContent.textContent = replyContent;
+
+            directMessageReplyDisplayEl.append(zycordDMreplyUsername, zycordDMreplyContent);
+        }
+    }
+
+    // Avatar
+    const avatarEl = document.createElement('div');
+    avatarEl.className = 'zycord-ChannelMessageAvatarContainer';
+    if (avatarSrc) {
+        const img = document.createElement('img');
+        img.src = avatarSrc;
+        img.className = 'zycord-AvatarImage';
+        avatarEl.appendChild(img);
+    }
+
+    // Text container
+    const textEl = document.createElement('div');
+    textEl.className = 'zycord-ChannelMessageTextContainer';
+
+    // Header
+    const headerEl = document.createElement('div');
+    headerEl.className = 'zycord-ChannelMessageHeaderContainer';
+
+    const usernameEl = document.createElement('div');
+    usernameEl.className = 'zycord-ChannelMessageUsername';
+    usernameEl.textContent = username;
+    if (tag) {
+        const tagEl = document.createElement('div');
+        tagEl.className = 'zycord-ApplicationTag';
+        tagEl.textContent = tag;
+        usernameEl.appendChild(tagEl);
+    }
+
+    const timestampEl = document.createElement('div');
+    timestampEl.className = 'zycord-ChannelMessageTimestamp';
+    timestampEl.textContent = formatUnixTimestamp(timestamp);
+
+    headerEl.append(usernameEl, timestampEl);
+
+    // Content container
+    const contentEl = document.createElement('div');
+    contentEl.className = 'zycord-ChannelMessageContentContainer';
+
+    const mainContentEl = document.createElement('div');
+    mainContentEl.className = 'zycord-ChannelMessageContent';
+    mainContentEl.innerHTML = parseDiscordEmojis(content);
+
+    contentEl.appendChild(mainContentEl);
+
+    if (edited) {
+        const editedTagEl = document.createElement('span');
+        editedTagEl.className = 'zycord-ChannelMessageEdited';
+        editedTagEl.textContent = ' (edited)';
+        mainContentEl.appendChild(editedTagEl);
+    }
+
+    // Attachments
+    if (attachments.length) {
+        const attachmentsContainer = document.createElement('div');
+        attachmentsContainer.className = 'zycord-ChannelAttachmentContent';
+
+        attachments.forEach(file => {
+            const ext = getFileExtension(file.url);
+            let attachmentEl;
+
+            if (ext === 'mp3' || ext === 'wav' || ext === 'ogg' || ext === 'flac') {
+                attachmentEl = createCustomAudioPlayer(file.filename, file.url);
+            } else {
+                attachmentEl = document.createElement('img');
+                attachmentEl.src = file.url;
+                attachmentEl.className = 'zycord-MessageAttachment';
+            }
+
+            attachmentsContainer.appendChild(attachmentEl);
+        });
+
+        contentEl.appendChild(attachmentsContainer);
+    }
+
+    // Embed block
+    if (embed.length) {
+        const embedList = document.createElement('div');
+        embedList.className = 'zycord-ChannelEmbedContainer';
+
+        embed.forEach(({
+            title,
+            details
+        }) => {
+            if (title || details) {
+                const embedContainer = document.createElement('div');
+                embedContainer.className = 'zycord-ChannelEmbedContent';
+
+                const embedTitle = document.createElement('div');
+                embedTitle.className = 'zycord-EmbedTitle';
+                embedTitle.textContent = title || '';
+
+                const embedDetails = document.createElement('div');
+                embedDetails.className = 'zycord-EmbedDetails';
+                embedDetails.textContent = details || '';
+
+                embedContainer.append(embedTitle, embedDetails);
+                embedList.appendChild(embedContainer);
+            }
+        });
+
+        contentEl.appendChild(embedList);
+    }
+
+    if (reactions.length) {
+        const reactionList = document.createElement('div');
+        reactionList.className = 'zycord-ChannelReactionList';
+
+        reactions.forEach(({
+            emoji,
+            count
+        }) => {
+            const reactionEl = document.createElement('div');
+            reactionEl.className = 'zycord-MessageReaction';
+
+            const iconEl = createEmojiNode(emoji);
+
+            const numberEl = document.createElement('div');
+            numberEl.className = 'zycord-MessageReactionNumber';
+            numberEl.textContent = count;
+
+            reactionEl.append(iconEl, numberEl);
+            reactionList.appendChild(reactionEl);
+        });
+
+        contentEl.appendChild(reactionList);
+    }
+
+    function createEmojiNode(emoji) {
+        if (emoji.id) {
+            const ext = emoji.animated ? 'gif' : 'png';
+            const img = document.createElement('img');
+            img.src = `https://cdn.discordapp.com/emojis/${emoji.id}.${ext}`;
+            img.alt = emoji.name || '';
+            img.className = 'zycord-MessageReactionIcon';
+            img.loading = 'lazy';
+            img.onerror = () => {
+                img.src = ''; // optional fallback!
+            };
+            return img;
+        } else {
+            const native = document.createElement('div');
+            native.textContent = emoji.name;
+            native.className = 'zycord-MessageReactionIcon zycord-NativeEmoji';
+            return native;
+        }
+    }
+
+    textEl.append(headerEl, contentEl);
+    directMessageContentDisplayEl.append(avatarEl, textEl);
+    messageEl.append(directMessageReplyDisplayEl, directMessageContentDisplayEl);
+
+    document.querySelector('.zycord-MessageContainerList').prepend(messageEl);
+
+    attachSwipeToElement(messageEl, () => {
+        createFocusContainer(messageId);
+    });
+
+    [usernameEl, avatarEl].forEach(el => {
+        el.style.cursor = "pointer";
+        el.addEventListener("click", () => {
+            const messageAuthorId = zycordDataStore.get(`channel-${currentChannelId}-messages`)?.find(msg => msg.id === messageId)?.author?.id;
+            showDiscordUserProfileOverlay(messageAuthorId);
+        });
+    });
+
+    return messageEl;
+}
+
+function upsertMessage(messageData) {
+    const { messageId, newMessageId } = messageData;
+
+    const resolvedId = newMessageId || messageId;
+    const existing = document.querySelector(`[data-message-id="${messageId}"]`);
+
+    // Update the ID inside the original element before replacing
+    if (existing && newMessageId) {
+        existing.dataset.messageId = newMessageId;
+    }
+
+    // Overwrite messageId with newMessageId for rendering
+    const updatedMessageData = {
+        ...messageData,
+        messageId: resolvedId
+    };
+
+    const newMessageEl = createMessageElement(updatedMessageData);
+
+    if (existing) {
+        existing.replaceWith(newMessageEl); // updates in place
+    } else {
+        const container = document.querySelector('.zycord-ChannelMessageList');
+        if (container) {
+            container.prepend(newMessageEl);
+        } else {
+            console.warn('Message container not found. Delaying render or aborting...');
+        }
+    }
+}
+
+// Now you can use discordAccountAuth safely
+console.log("Authenticated with token:", discordAccountAuth);
+
+discordAccountAuth || console.error("Account authorization token is not set.");
+
+const zycordDataStore = (() => { const e = new Map; return { set: (t, a) => { e.set(t, a) }, get: t => e.get(t), has: t => e.has(t), delete: t => { e.delete(t) }, clear: () => { e.clear() } } })();
+const zycordWebsocketEndpoint = 'wss://gateway.discord.gg/?v=10&encoding=json';
+const zycordStateStore = (() => {
+    let currentState = null;
+
+    const replyContainer = document.querySelector('.zycord-MessageCreationReply');
+    replyContainer.style.display = 'none';
+    const removeButton = replyContainer?.querySelector('.zycord-ReplyRemoveBtn');
+
+    const applyStateToUI = () => {
+        if (currentState) {
+            replyContainer.style.display = '';
+            console.log(`Applying state: ${JSON.stringify(currentState)}`);
+            replyContainer.querySelector('.zycord-CreationReplyContent').textContent = currentState.type === 1 ? `Replying to a message` : `Editing message`;
+        } else {
+            replyContainer.style.display = 'none';
+        }
+    };
+
+    if (removeButton) {
+        removeButton.addEventListener('click', () => {
+            currentState = null;
+            applyStateToUI();
+        });
+    }
+
+    return {
+        setState: (stateObj) => {
+            currentState = stateObj;
+            applyStateToUI();
+        },
+        clearState: () => {
+            currentState = null;
+            applyStateToUI();
+        },
+        getState: () => currentState
+    };
+})();
+
+const zycordMediaStore = (() => {
+    let mediaFiles = [];
+
+    return {
+        addFile: (file) => {
+            mediaFiles.push(file);
+        },
+        removeFile: (targetFile) => {
+            mediaFiles = mediaFiles.filter(file => file !== targetFile);
+        },
+        getFiles: () => mediaFiles,
+        clearFiles: () => {
+            mediaFiles = [];
+        },
+        hasFiles: () => mediaFiles.length > 0
+    };
+})();
+
+let currentChannelId = "1259952741569269913";
+let heartbeatInterval;
+let zycordWebsocket;
+
+const buttons = document.querySelectorAll('.zycord-NavigationButton');
+const windows = document.querySelectorAll('.zycord-AppWindow > div');
+const threadWindow = document.querySelector('.zycord-ThreadWindow');
+const messageContainer = document.querySelector('.zycord-MessageContainer');
+
+buttons.forEach(((s, a) => { s.addEventListener("click", (() => { buttons.forEach((s => s.classList.remove("active"))), s.classList.add("active"), windows.forEach((s => s.classList.remove("active-window"))), windows[a].classList.add("active-window") })) }));
+buttons[0].classList.add('active');
+windows[0].classList.add('active-window');
+
+function hideLoad() {
+    const loader = document.querySelector(".zycord-LoadContainer");
+    if (!loader) return;
+
+    // Fade out
+    loader.style.transition = "opacity 1s ease";
+    loader.style.opacity = "0";
+
+    // Once faded, hide completely
+    setTimeout(() => {
+        loader.style.display = "none";
+    }, 1000);
+}
+
+function showLoad() {
+    const loader = document.querySelector(".zycord-LoadContainer");
+    if (!loader) return;
+
+    // Prepare for reveal
+    loader.style.display = ""; // or "block", depending on your layout
+    loader.style.opacity = "0";
+    loader.style.transition = "opacity 1s ease";
+
+    // Trigger fade-in
+    requestAnimationFrame(() => {
+        loader.style.opacity = "1";
+    });
+}
+
+let startX = 0;
+let startY = 0;
+let currentX = 0;
+let deltaX = 0;
+
+threadWindow.addEventListener("touchstart", (t => { 1 === t.touches.length && (startX = t.touches[0].clientX, startY = t.touches[0].clientY, isDragging = !0, gestureLocked = null, messageContainer.style.transition = "none") }));
+threadWindow.addEventListener("touchmove", (t => { if (!isDragging) return; const e = t.touches[0]; currentX = e.clientX; const r = e.clientY, a = currentX - startX, n = r - startY; if (gestureLocked || (Math.abs(a) > Math.abs(n) ? gestureLocked = "drag" : gestureLocked = "scroll"), "drag" === gestureLocked && (deltaX = startX - currentX, deltaX > 0)) { const e = Math.min(deltaX / window.innerWidth * 100, 100); messageContainer.style.transform = `translateX(${100 - e}vw)`, t.preventDefault() } }));
+threadWindow.addEventListener("touchend", (() => { isDragging && "drag" === gestureLocked && (isDragging = !1, deltaX > .25 * window.innerWidth ? swipeMessageContainer(!0) : swipeMessageContainer(!1), gestureLocked = null) }));
+
+messageContainer.addEventListener("touchstart", (t => { 1 === t.touches.length && (startX = t.touches[0].clientX, startY = t.touches[0].clientY, isDragging = !0, gestureLocked = null, messageContainer.style.transition = "none") }));
+messageContainer.addEventListener("touchmove", (e => { if (!isDragging) return; const t = e.touches[0]; currentX = t.clientX; const r = t.clientY, n = currentX - startX, a = r - startY; if (gestureLocked || (gestureLocked = Math.abs(n) > Math.abs(a) ? "drag" : "scroll"), "drag" === gestureLocked && n > 0) { deltaX = n; const t = Math.min(deltaX / window.innerWidth * 100, 100); messageContainer.style.transform = `translateX(${t}vw)`, e.preventDefault() } }));
+messageContainer.addEventListener("touchend", (() => { isDragging && "drag" === gestureLocked && (isDragging = !1, deltaX > .25 * window.innerWidth ? swipeMessageContainer(!1) : swipeMessageContainer(!0), gestureLocked = null) }));
+
+let typingInterval = null;
+
+function sendTypingNotification() { currentChannelId && discordAccountAuth && fetch(`https://discord.com/api/v9/channels/${currentChannelId}/typing`, { method: "POST", headers: { Authorization: discordAccountAuth } }).catch((n => console.error("Typing notification failed:", n))) }
+function startTypingLoop() { !typingInterval && currentChannelId && discordAccountAuth && (sendTypingNotification(), typingInterval = setInterval((() => { document.getElementById("messageInput").value.trim() ? sendTypingNotification() : stopTypingLoop() }), 8e3)) }
+function stopTypingLoop() { typingInterval && (clearInterval(typingInterval), typingInterval = null) }
+document.getElementById("messageInput").addEventListener("input", (() => { document.getElementById("messageInput").value.trim().length > 0 ? startTypingLoop() : stopTypingLoop() }));
+
+function replyMessageAction(specifiedMessageId) {
+    const replyState = {
+        type: 1,
+        reference: specifiedMessageId
+    };
+    zycordStateStore.setState(replyState);
+    const inputField = document.getElementById('messageInput');
+    if (inputField) {
+        inputField.value = '';
+        inputField.focus();
+    }
+}
+function editMessageAction(specifiedMessageId) {
+    const replyState = {
+        type: 2,
+        reference: specifiedMessageId
+    };
+    zycordStateStore.setState(replyState);
+    const inputField = document.getElementById('messageInput');
+    const messageData = zycordDataStore.get(`channel-${currentChannelId}-messages`)?.find(msg => msg.id === specifiedMessageId);
+    if (messageData) {
+        if (inputField) {
+            inputField.value = messageData.content || '';
+            inputField.focus();
+        }
+    } else {
+        console.warn(`No message data found for ID: ${specifiedMessageId}`);
+    }
+}
+async function deleteMessage(specifiedMessageId) {
+    if (!currentChannelId || !discordAccountAuth) {
+        console.error("Missing currentChannelId or discordAccountAuth");
+        return;
+    }
+
+    const focusContainer = document.querySelector('.zycord-FocusContainer');
+    if (!focusContainer) {
+        console.error("Focus container not found in DOM");
+        return;
+    }
+
+    createFocusConfirmMenu({
+        title: "Delete Message",
+        description: "Are you sure you want to delete this message?",
+        onConfirm: async () => {
+            try {
+                const response = await fetch(`https://discord.com/api/v9/channels/${currentChannelId}/messages/${specifiedMessageId}`, {
+                    method: "DELETE",
+                    headers: {
+                        "Authorization": discordAccountAuth,
+                        "Content-Type": "application/json"
+                    }
+                });
+
+                if (!response.ok) {
+                    console.error("Failed to delete message:", await response.text());
+                } else {
+                    console.log("Message deleted successfully");
+                }
+            } catch (error) {
+                console.error("Error deleting message:", error);
+            }
+        },
+        onCancel: () => console.log("Delete cancelled")
+    });
+}
+
+async function sendMessage() {
+    try {
+        const inputField = document.getElementById('messageInput');
+        const messageText = inputField.value.trim();
+        const fileInput = document.getElementById('fileInput');
+        const mediaFiles = zycordMediaStore.getFiles();
+        const currentMessageState = zycordStateStore.getState();
+
+        if (!messageText && mediaFiles.length === 0) return;
+        if (!currentChannelId || !discordAccountAuth) return;
+
+        let messageFetchMethod = currentMessageState && currentMessageState.type === 2 ? 'PATCH' : 'POST';
+        let messageFetchUrl = currentMessageState && currentMessageState.type === 2
+            ? `https://discord.com/api/v9/channels/${currentChannelId}/messages/${currentMessageState.reference}`
+            : `https://discord.com/api/v9/channels/${currentChannelId}/messages`;
+
+        const formData = new FormData();
+
+        const payload = {
+            content: messageText,
+            tts: false
+        };
+
+        if (currentMessageState && currentMessageState.type === 1) {
+            payload.message_reference = {
+                message_id: currentMessageState.reference,
+                channel_id: currentChannelId,
+                fail_if_not_exists: false
+            };
+        }
+
+        formData.append('payload_json', JSON.stringify(payload));
+
+        if (!currentMessageState || (currentMessageState.type !== 2)) {
+            mediaFiles.forEach((file, index) => {
+                formData.append(`files[${index}]`, file);
+            });
+        }
+
+        // Optional local message ID, used for client-side rendering
+        let localMessageId;
+
+        try {
+            localMessageId = crypto.randomUUID();
+        } catch (error) {
+            const unixTs = Math.floor(Date.now() / 1000); // UNIX timestamp in seconds
+            const tsBuffer = new Uint8Array(4); // 32-bit timestamp
+            new DataView(tsBuffer.buffer).setUint32(0, unixTs, false); // big-endian
+            localMessageId = btoa(String.fromCharCode(...tsBuffer));
+        }
+
+        const pendingMessage = createMessageElement({
+            messageReference: currentMessageState && currentMessageState.type === 1 ? {
+                message_id: currentMessageState.reference,
+                channel_id: currentChannelId
+            } : {},
+            edited: false,
+            messageId: localMessageId,
+            username: 'You',
+            tag: '',
+            timestamp: Math.floor(Date.now() / 1000),
+            content: messageText,
+            attachments: mediaFiles.map(file => ({
+                url: URL.createObjectURL(file),
+                filename: file.name
+            })),
+            embed: [],
+            reactions: [],
+            avatarSrc: 'https://cdn.discordapp.com/embed/avatars/0.png'
+        }).classList.add('zycord-ChannelMessagePending');
+
+        zycordStateStore.clearState();
+        inputField.value = '';
+        fileInput.value = ''; // Clear file input
+        zycordMediaStore.clearFiles();
+        document.getElementById('zycord-MediaPreviewContainer').innerHTML = '';
+        document.getElementById('zycord-MediaPreviewContainer').style.display = 'none';
+
+        try {
+            const response = await fetch(messageFetchUrl, {
+                method: messageFetchMethod,
+                headers: {
+                    'Authorization': discordAccountAuth
+                },
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                const messageAlreadyExists = !!document.querySelector(`[data-message-id="${result.id}"]`);
+                if (!messageAlreadyExists) {
+                    upsertMessage({
+                        messageReference: currentMessageState && currentMessageState.type === 1 ? {
+                            message_id: currentMessageState.reference,
+                            channel_id: currentChannelId
+                        } : {},
+                        edited: false,
+                        messageId: localMessageId,
+                        newMessageId: result.id,
+                        username: result.author.global_name || 'Unknown',
+                        tag: result.author.bot ? 'app' : '',
+                        timestamp: Math.floor(new Date(result.timestamp).getTime() / 1000),
+                        content: result.content || '',
+                        attachments: result.attachments || [],
+                        embed: result.embeds || [],
+                        reactions: result.reactions || [],
+                        avatarSrc: result.author.avatar
+                            ? `https://cdn.discordapp.com/avatars/${result.author.id}/${result.author.avatar}.png?size=512`
+                            : 'https://cdn.discordapp.com/embed/avatars/0.png'
+                    });
+                } else {
+                    if (pendingMessage) {
+                        pendingMessage.remove();
+                    } else {
+                        const pendingMessageDocument = document.querySelector(`[data-message-id="${localMessageId}"]`);
+                        if (pendingMessageDocument) {
+                            pendingMessageDocument.remove();
+                        }
+                    }
+                }
+            } else {
+                console.error('Discord API error:', result);
+            }
+        } catch (error) {
+            console.error('Message send failed:', error);
+        }
+    } catch (error) {
+        console.error(JSON.stringify(error));
+    }
+}
+async function fetchAndRenderMessages() { const e = `channel-${currentChannelId}-messages`; if (zycordDataStore.has(e)) { const s = zycordDataStore.get(e); renderMessages(s) } else try { const s = await fetch(`https://discord.com/api/v9/channels/${currentChannelId}/messages?limit=50`, { method: "GET", headers: { Authorization: discordAccountAuth, "Content-Type": "application/json" } }); if (!s.ok) throw new Error("Failed to fetch messages"); const t = await s.json(); zycordDataStore.set(e, t), t.reverse(), renderMessages(t) } catch (e) { console.error("Error loading messages:", e) } }
+async function listDMChannels() { const t = await fetch("https://discord.com/api/v10/users/@me/channels", { method: "GET", headers: { Authorization: discordAccountAuth, "Content-Type": "application/json" } }); if (!t.ok) throw new Error(`HTTP error ${t.status}`); return await t.json() }
+async function renderDmListFromAPI() {
+    try {
+        const threadWindow = document.querySelector(".zycord-ThreadWindow");
+        if (threadWindow) {
+            threadWindow.innerHTML = ""; // Clear previous DM components
+        }
+
+        const channels = await listDMChannels();
+
+        channels.sort((a, b) => {
+            if (!a.last_message_id) return 1;
+            if (!b.last_message_id) return -1;
+
+            const aMsgId = BigInt(a.last_message_id);
+            const bMsgId = BigInt(b.last_message_id);
+
+            if (aMsgId > bMsgId) return -1;
+            if (aMsgId < bMsgId) return 1;
+            return 0;
+        });
+
+        channels.forEach(channel => {
+            if (channel.type !== 1) return;
+
+            const recipient = channel.recipients?.[0];
+            if (!recipient) return;
+
+            const avatarUrl = recipient.avatar
+                ? `https://cdn.discordapp.com/avatars/${recipient.id}/${recipient.avatar}.png?size=512`
+                : "https://cdn.discordapp.com/embed/avatars/0.png";
+
+            createDirectMessage({
+                userId: recipient.id,
+                channelId: channel.id,
+                avatarUrl: avatarUrl,
+                username: recipient.global_name || recipient.username,
+                status: "",
+                accountType: recipient.bot ? "app" : "user"
+            });
+        });
+    } catch (error) {
+        console.error("Failed to fetch DM list:", error);
+    }
+}
+function parseDiscordEmojis(text) {
+    // Step 1: Escape all HTML to prevent injection
+    const escapedText = text
+        .replace(/&/g, "&amp;") // Must go first!
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+    // Step 2: Emoji size class logic
+    const hasText = escapedText.replace(/&lt;a?:[\w]+:\d+&gt;/g, "").trim().length > 0;
+    const sizeClass = hasText ? "inline-emoji" : "inline-emoji inline-emoji-no-text";
+
+    // Step 3: Parse Discord emoji markup
+    let parsed = escapedText
+        .replace(/&lt;a:([\w]+):(\d+)&gt;/g, (_, name, id) => {
+            return `<img src="https://cdn.discordapp.com/emojis/${id}.gif" alt="${name}" class="zycord-emoji ${sizeClass}">`;
+        })
+        .replace(/&lt;:([\w]+):(\d+)&gt;/g, (_, name, id) => {
+            return `<img src="https://cdn.discordapp.com/emojis/${id}.png" alt="${name}" class="zycord-emoji ${sizeClass}">`;
+        });
+
+    // Step 4: Parse markdown-style Discord formatting
+    parsed = parsed
+        .replace(/\*\*(.*?)\*\*/g, `<span class="zycord-bold">$1</span>`)
+        .replace(/\*(.*?)\*/g, `<span class="zycord-italic">$1</span>`)
+        .replace(/__(.*?)__/g, `<span class="zycord-underline">$1</span>`)
+        .replace(/~~(.*?)~~/g, `<span class="zycord-strikethrough">$1</span>`)
+        .replace(/`([^`]+?)`/g, `<span class="zycord-code">$1</span>`)
+        .replace(/([\u{1F300}-\u{1FAFF}])/gu, '<span class="zycord-emoji zycord-unicode-emoji">$1</span>');
+
+    return parsed;
+}
+function renderMessages(messages) {
+    const container = document.querySelector(".zycord-MessageContainerList");
+    if (!container) {
+        console.warn("ThreadWindow element not found");
+        return;
+    }
+
+    container.innerHTML = "";
+
+    const messageMap = new Map();
+    messages.forEach(message => {
+        messageMap.set(message.id, message);
+    });
+
+    messages.forEach(message => {
+        const isRenderableType = message.type === 0 || message.type === 19;
+        if (!isRenderableType || !message.author) return;
+
+        if (message.message_snapshots && message.message_snapshots.length > 0) {
+            message.message_snapshots.forEach(snapshot => {
+                if (snapshot.message.type === 19) {
+                    createMessageElement({
+                        messageReference: message.message_reference || {},
+                        edited: !!message.edited_timestamp,
+                        messageId: message.id,
+                        username: message.author?.global_name || "Unknown",
+                        tag: message.author?.bot ? "app" : "",
+                        timestamp: snapshot.message.timestamp
+                            ? Math.floor(new Date(message.timestamp).getTime() / 1000)
+                            : Math.floor(Date.now() / 1000),
+                        content: snapshot.message.content || "",
+                        attachments: snapshot.message.attachments || [],
+                        embed: snapshot.message.embeds || [],
+                        reactions: message.reactions || [],
+                        avatarSrc: message.author.avatar
+                            ? `https://cdn.discordapp.com/avatars/${message.author.id}/${message.author.avatar}.png?size=512`
+                            : "https://cdn.discordapp.com/embed/avatars/0.png"
+                    });
+                }
+            });
+        } else {
+            createMessageElement({
+                messageReference: message.message_reference || {},
+                edited: !!message.edited_timestamp,
+                messageId: message.id,
+                username: message.author?.global_name || "Unknown",
+                tag: message.author?.bot ? "app" : "",
+                timestamp: message.timestamp
+                    ? Math.floor(new Date(message.timestamp).getTime() / 1000)
+                    : Math.floor(Date.now() / 1000),
+                content: message.content || "",
+                attachments: message.attachments || [],
+                embed: message.embeds || [],
+                reactions: message.reactions || [],
+                avatarSrc: message.author.avatar
+                    ? `https://cdn.discordapp.com/avatars/${message.author.id}/${message.author.avatar}.png?size=512`
+                    : "https://cdn.discordapp.com/embed/avatars/0.png"
+            });
+        }
+    });
+}
+function swipeMessageContainer(e) { const t = document.querySelector(".zycord-MessageContainer"); t.style.transition = "transform 0.3s ease", t.style.transform = e ? "translateX(0)" : "translateX(100vw)" }
+function setDirectMessageUnread(channelId, isUnread) {
+    // Update unread styling on matching direct message containers
+    document.querySelectorAll(`.zycord-directMessageContainer[data-channel-id="${channelId}"]`)
+        .forEach(container => {
+            if (isUnread) {
+                container.classList.add("zycord-directMessageTypeUnread");
+            } else {
+                container.classList.remove("zycord-directMessageTypeUnread");
+            }
+        });
+
+    // Check if there are any unread messages present
+    const hasUnread = document.querySelector(".zycord-directMessageTypeUnread") !== null;
+
+    // Update visibility on all navigation indicators
+    document.querySelectorAll(".zycord-NavigationNew")
+        .forEach(indicator => {
+            indicator.style.display = hasUnread ? "block" : "none";
+        });
+}
+function createDirectMessage({
+    userId,
+    channelId,
+    avatarUrl,
+    username,
+    status,
+    accountType = "user"
+}) {
+    const container = document.createElement("div");
+    container.className = "zycord-directMessageContainer";
+    container.dataset.channelId = channelId;
+    container.dataset.userId = userId;
+    container.style.cursor = "pointer";
+    container.addEventListener("click", () => {
+        currentChannelId = channelId;
+        document.querySelector(".zycord-directNavigationUsername").textContent = username;
+        fetchAndRenderMessages();
+        setDirectMessageUnread(channelId, false);
+        swipeMessageContainer(true);
+        updateStatusMessageDebounced(`Reading message from ${username}`, zycordWebsocket);
+    });
+
+    const avatarWrapper = document.createElement("div");
+    avatarWrapper.className = "zycord-directMessageAvatar";
+
+    const avatarImage = document.createElement("img");
+    avatarImage.className = "zycord-directMessageAvatarDisplay";
+    avatarImage.src = avatarUrl;
+
+    if (accountType && accountType !== "user") {
+        avatarWrapper.appendChild(avatarImage);
+    } else {
+        const statusContainer = document.createElement("div");
+        statusContainer.className = "zycord-StatusDM";
+
+        const statusDisplay = document.createElement("div");
+        statusDisplay.className = "zycord-StatusDisplayDM zycord-StatusTypeOffline";
+        statusDisplay.dataset.userId = userId;
+
+        statusContainer.appendChild(statusDisplay);
+        avatarWrapper.appendChild(avatarImage);
+        avatarWrapper.appendChild(statusContainer);
+    }
+
+    const contentWrapper = document.createElement("div");
+    contentWrapper.className = "zycord-directMessageContent";
+
+    const usernameDisplay = document.createElement("div");
+    usernameDisplay.className = "zycord-directMessageUsername";
+    usernameDisplay.textContent = username;
+
+    const statusText = document.createElement("div");
+    statusText.className = "zycord-directMessageStatus";
+    statusText.textContent = status;
+    statusText.dataset.userId = userId;
+
+    contentWrapper.appendChild(usernameDisplay);
+
+    if (accountType && accountType !== "user") {
+        const tag = document.createElement("div");
+        tag.className = "zycord-ApplicationTag";
+        tag.textContent = accountType;
+        usernameDisplay.appendChild(tag);
+    }
+
+    contentWrapper.appendChild(statusText);
+    container.appendChild(avatarWrapper);
+    container.appendChild(contentWrapper);
+
+    const threadWindow = document.querySelector(".zycord-ThreadWindow");
+    if (threadWindow) {
+        threadWindow.appendChild(container);
+    } else {
+        console.warn("ThreadWindow element not found");
+    }
+}
+function getStatusClassFromPresence(status) {
+    const statusMap = {
+        online: "zycord-StatusTypeOnline",
+        offline: "zycord-StatusTypeOffline",
+        idle: "zycord-StatusTypeIdle",
+        dnd: "zycord-StatusTypeDnd"
+    };
+
+    const statusKey = status?.toLowerCase?.();
+    const className = statusMap[statusKey];
+
+    if (!className) {
+        console.warn(`Unknown status: ${status}`);
+        return null;
+    }
+
+    return className;
+}
+
+let currentStatusDebounce = false;
+let currentStatusMessage = "";
+
+function updateStatusMessageDebounced(newStatus, currentWebSocket) {
+    currentStatusMessage = newStatus;
+
+    if (currentStatusDebounce) {
+        return;
+    }
+    resetIdleTimer(newStatus, currentWebSocket);
+    currentStatusDebounce = true;
+    setTimeout(() => {
+        currentStatusDebounce = false;
+        if (newStatus !== currentStatusMessage) {
+            updateStatusMessageDebounced(currentStatusMessage, currentWebSocket);
+        }
+    }, 10000);
+}
+
+let idleTimer;
+
+const idleStateLabel = "Idling...";
+
+function resetIdleTimer(currentState, currentWebSocket) {
+    clearTimeout(idleTimer);
+    updateStatusMessage(currentState, currentWebSocket);
+
+    idleTimer = setTimeout(() => {
+        updateStatusMessage(idleStateLabel, currentWebSocket);
+    }, 120000);
+}
+
+let firstUsedTimestamp;
+
+function updateStatusMessage(currentState, currentWebSocket) {
+    if (
+        currentWebSocket &&
+        typeof currentWebSocket.send === "function" &&
+        currentWebSocket.readyState === WebSocket.OPEN
+    ) {
+        // Set start timestamp if not already set
+        if (!firstUsedTimestamp) {
+            firstUsedTimestamp = Math.floor(Date.now()); // Unix timestamp in seconds
+        }
+
+        const activities = [{
+            application_id: "1396981585932455936",
+            name: "Zycord",
+            type: 0,
+            state: currentState || "Unknown",
+            timestamps: {
+                start: firstUsedTimestamp
+            }
+        }];
+
+        const status = 'idle';
+
+        currentWebSocket.send(JSON.stringify({
+            op: 3,
+            d: {
+                since: null,
+                activities,
+                status,
+                afk: true
+            }
+        }));
+
+        updateActivityData({
+            user: { id: "827356967688339458", activities },
+            status
+        });
+    } else {
+        console.warn("WebSocket not ready for sending status message.");
+    }
+}
+
+function updateStatusIcons(userId, status, statusText = "") {
+    const activity = zycordDataStore.get(`activities-${userId}`);
+
+    // Map status string to corresponding class name
+    const statusClass = {
+        online: "zycord-StatusTypeOnline",
+        offline: "zycord-StatusTypeOffline",
+        idle: "zycord-StatusTypeIdle",
+        dnd: "zycord-StatusTypeDnd"
+    }[status.toLowerCase()];
+
+    // Warn if status is unknown
+    if (!statusClass) {
+        console.warn(`Unknown status: ${status}`);
+        return;
+    }
+
+    // Update status icon classes for matching elements
+    document.querySelectorAll(`.zycord-StatusDisplayDM[data-user-id="${userId}"]`)
+        .forEach(element => {
+            element.classList.forEach(cls => {
+                if (cls.startsWith("zycord-StatusType")) {
+                    element.classList.remove(cls);
+                }
+            });
+            element.classList.add(statusClass);
+        });
+
+    // Update direct message status text
+    document.querySelectorAll(`.zycord-directMessageStatus[data-user-id="${userId}"]`)
+        .forEach(element => {
+            element.textContent = statusText;
+        });
+
+    if (Array.isArray(activity?.activities) && activity.activities.length > 0) {
+        activity.activities.forEach(act => {
+            upsertActivityElement(act);
+        });
+    }
+}
+function updateActivityData(t) { const i = t?.user?.id; if (!i) return; const s = t?.status ?? "offline", a = Array.isArray(t?.user?.activities) ? t.user.activities : []; zycordDataStore.set(`activities-${i}`, { status: s, activities: a }); let e = ""; a.forEach((t => { 4 === t.type && "custom" === t.id && (e = t.state || t.name || "") })), updateStatusIcons(i, s, e) }
+function initializeWebSocket() {
+    const socket = new WebSocket(zycordWebsocketEndpoint);
+
+    // When connection opens, authenticate and begin heartbeat logic
+    socket.addEventListener("open", () => {
+        currentlyReconnecting = false;
+
+        socket.send(JSON.stringify({
+            op: 2,
+            d: {
+                token: discordAccountAuth,
+                properties: {
+                    os: "Linux",
+                    browser: "Chrome",
+                    device: "web"
+                }
+            }
+        }));
+
+        updateLoadStatus('websocketConnection', true);
+    });
+
+    // Handle incoming WebSocket messages
+    socket.addEventListener("message", (event) => {
+        try {
+            const { op, t: type, d: data } = JSON.parse(event.data);
+            const userId = data?.user?.id;
+
+            // Start heartbeat interval when server sends HELLO
+            if (!currentlyReconnecting && op === 10) {
+                startHeartbeat(socket, data.heartbeat_interval);
+                updateLoadStatus('websocketHeartbeat', true);
+                return;
+            }
+
+            // Handle READY: update user status and unread messages
+            if (type === "READY") {
+                if (userId) {
+                    updateActivityData({ user: { id: userId, activities: [] }, status: "online" });
+                }
+
+                data?.presences?.forEach(({ user, status = "offline", activities }) => {
+                    updateActivityData({
+                        user: { id: user.id, activities },
+                        status
+                    });
+                });
+
+                const readState = data?.read_state;
+                const unreadChannels = readState ? Object.values(readState).filter(({ mention_count, id, last_message_id }) =>
+                    typeof mention_count === "number" && mention_count > 0 &&
+                    typeof id === "string" && typeof last_message_id === "string"
+                ) : [];
+                unreadChannels.forEach(({ id: channelId, last_message_id: messageId }) => {
+                    setDirectMessageUnread(channelId, true);
+                });
+                updateLoadStatus('websocketReady', true);
+            }
+            if (type === "PRESENCE_UPDATE") {
+                const presenceUserId = data?.user?.id;
+                const status = data?.status ?? "offline";
+                const activities = Array.isArray(data?.activities) ? data.activities : [];
+                if (presenceUserId) {
+                    updateActivityData({
+                        user: { id: presenceUserId, activities },
+                        status
+                    });
+                }
+            }
+            // Handle MESSAGE_CREATE: mark message as unread if not current channel
+            if (type === "MESSAGE_CREATE" && data?.channel_id && data?.id && currentChannelId !== data.channel_id) {
+                setDirectMessageUnread(data.channel_id, true);
+            }
+            if (type === "MESSAGE_ACK") {
+                console.log("Received MESSAGE_ACK:", data);
+                const { channel_id, mention_count, message_id } = data || {};
+                if (!channel_id) return;
+                console.log(`Message ACK received for channel ${channel_id} with mention count ${mention_count}`);
+                if (typeof mention_count === "number" && mention_count > 0) {
+                    console.log(`Unread messages for channel ${channel_id}: ${mention_count}`);
+                    setDirectMessageUnread(channel_id, true);
+                } else {
+                    console.log(`No unread messages for channel ${channel_id}, clearing state.`);
+                    setDirectMessageUnread(channel_id, false);
+                }
+            }
+
+            if (type === "MESSAGE_CREATE" && data?.channel_id && data?.id) {
+                const container = document.querySelector(
+                    `.zycord-directMessageContainer[data-channel-id="${data.channel_id}"]`
+                );
+
+                if (container) {
+                    const parent = container.parentElement;
+                    if (parent) {
+                        parent.prepend(container);
+                    }
+                }
+            }
+
+            if (type === "MESSAGE_CREATE" && data?.channel_id && data?.id) {
+                const storeKey = `channel-${data.channel_id}-messages`;
+                if (zycordDataStore.has(storeKey)) {
+                    const cachedMessages = zycordDataStore.get(storeKey);
+                    if (!cachedMessages.some(msg => msg.id === data.id)) {
+                        cachedMessages.push(data);
+                        zycordDataStore.set(storeKey, cachedMessages);
+                    }
+                }
+            }
+
+            if (
+                type === "MESSAGE_DELETE" &&
+                data?.channel_id &&
+                data?.id
+            ) {
+                const storeKey = `channel-${data.channel_id}-messages`;
+
+                if (zycordDataStore.has(storeKey)) {
+                    const cachedMessages = zycordDataStore.get(storeKey) || [];
+                    const updatedCache = cachedMessages.filter(msg => msg.id !== data.id);
+
+                    // Update the data store
+                    zycordDataStore.set(storeKey, updatedCache);
+
+                    // Optionally remove from UI if it's visible
+                    if (currentChannelId === data.channel_id) {
+                        removeMessage(data.id); // assumes you have a UI handler like upsertMessage()
+                    }
+
+                    console.log(`🗑️ Message deleted: ${data.id}`);
+                }
+            }
+
+            if (
+                type === "MESSAGE_UPDATE" &&
+                data?.channel_id &&
+                data?.id
+            ) {
+                const storeKey = `channel-${data.channel_id}-messages`;
+                if (zycordDataStore.has(storeKey)) {
+                    let existingMsg = null;
+
+                    // Get existing message from store
+                    const cachedMessages = zycordDataStore.get(storeKey) || [];
+                    existingMsg = cachedMessages.find(msg => msg.id === data.id);
+                    console.log("Cached messages:", JSON.stringify(existingMsg, null, 2));
+
+                    // Merge updated fields with fallbacks
+                    const mergedData = {
+                        messageReference: data.message_reference,
+                        edited: !!data.edited_timestamp || existingMsg?.edited_timestamp || false,
+                        messageId: data.id,
+                        username: data.author?.global_name ?? existingMsg?.username ?? 'Unknown',
+                        tag: data.author?.bot ? 'app' : existingMsg?.tag ?? '',
+                        timestamp: data.timestamp
+                            ? Math.floor(new Date(data.timestamp).getTime() / 1000)
+                            : existingMsg?.timestamp ?? Math.floor(Date.now() / 1000),
+                        content:
+                            data.hasOwnProperty('content') && data.content !== null
+                                ? data.content
+                                : existingMsg?.content ?? '',
+                        attachments: Array.isArray(data.attachments)
+                            ? data.attachments.map(att => att.url)
+                            : existingMsg?.attachments ?? [],
+                        embed: Array.isArray(data.embeds)
+                            ? data.embeds
+                            : existingMsg?.embed ?? [],
+                        reactions: Array.isArray(data.reactions)
+                            ? data.reactions
+                            : existingMsg?.reactions ?? [],
+                        avatarSrc: data.author?.avatar
+                            ? `https://cdn.discordapp.com/avatars/${data.author.id}/${data.author.avatar}.png?size=512`
+                            : existingMsg?.avatarSrc ?? 'https://cdn.discordapp.com/embed/avatars/0.png'
+                    };
+
+                    // Update the visible UI
+                    if (currentChannelId === data.channel_id) {
+                        upsertMessage(mergedData);
+                    }
+
+                    const normalizedContent = JSON.parse(JSON.stringify(existingMsg));
+
+                    normalizedContent.embeds = mergedData.embed;
+                    normalizedContent.attachments = mergedData.attachments;
+                    normalizedContent.content = mergedData.content;
+                    normalizedContent.edited = mergedData.edited;
+                    normalizedContent.messageId = mergedData.messageId;
+                    normalizedContent.username = mergedData.username;
+                    normalizedContent.reactions = mergedData.reactions;
+
+                    // Replace message in datastore using a new array reference
+                    const updatedCache = [...cachedMessages];
+                    const index = updatedCache.findIndex(msg => msg.id === data.id);
+
+                    if (index !== -1) {
+                        updatedCache[index] = normalizedContent;
+                    } else {
+                        updatedCache.push(normalizedContent);
+                    }
+
+                    zycordDataStore.set(storeKey, updatedCache);
+                }
+            }
+
+            if (type === "MESSAGE_CREATE" && data?.channel_id && data?.id && currentChannelId === data.channel_id) {
+                const messageAlreadyExists = !!document.querySelector(`[data-message-id="${data.id}"]`);
+                if (!messageAlreadyExists) {
+                    createMessageElement({
+                        messageReference: data.message_reference,
+                        edited: data.edited_timestamp ? true : false,
+                        messageId: data.id,
+                        username: data.author?.global_name || 'Unknown',
+                        tag: data.author?.bot ? 'app' : '',
+                        timestamp: data.timestamp ? Math.floor(new Date(data.timestamp).getTime() / 1000) : Math.floor(Date.now() / 1000),
+                        content: data.content || '',
+                        attachments: data.attachments || [],
+                        embed: data.embeds || [],
+                        reactions: data.reactions || [],
+                        avatarSrc: `https://cdn.discordapp.com/avatars/${data.author.id}/${data.author.avatar}.png?size=512` || 'https://cdn.discordapp.com/embed/avatars/0.png'
+                    });
+                }
+            }
+        } catch (error) {
+            console.error("WebSocket message error:", error.message);
+        }
+    });
+    socket.addEventListener("close", () => {
+        if (!currentlyReconnecting) {
+            currentlyReconnecting = true;
+            updateLoadStatus('channelList', false);
+            updateLoadStatus('websocketConnection', false);
+            updateLoadStatus('websocketHeartbeat', false);
+            updateLoadStatus('websocketReady', false);
+            zycordDataStore.clear();
+            stopHeartbeat();
+            reconnect();
+        }
+    });
+    socket.addEventListener("error", () => {
+        if (!currentlyReconnecting) {
+            currentlyReconnecting = true;
+            updateLoadStatus('channelList', false);
+            updateLoadStatus('websocketConnection', false);
+            updateLoadStatus('websocketHeartbeat', false);
+            updateLoadStatus('websocketReady', false);
+            zycordDataStore.clear();
+            stopHeartbeat();
+            reconnect();
+        }
+    });
+
+    return socket;
+}
+function startHeartbeat(t, e) { heartbeatInterval && clearInterval(heartbeatInterval), heartbeatInterval = setInterval((() => { t.send(JSON.stringify({ op: 1, d: null })) }), e) }
+function stopHeartbeat() { heartbeatInterval && clearInterval(heartbeatInterval) }
+async function reconnect() {
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    await renderDmListFromAPI();
+    updateLoadStatus('channelList', true);
+    zycordWebsocket = initializeWebSocket();
+}
+async function start() {
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    await renderDmListFromAPI();
+    updateLoadStatus('channelList', true);
+    zycordWebsocket = initializeWebSocket();
+}
+start();
